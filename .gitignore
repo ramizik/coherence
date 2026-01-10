@@ -1,0 +1,6 @@
+.specstory/
+.cursor/
+.vscode/
+.cursorindexingignore
+.cursorignore
+.venv/
