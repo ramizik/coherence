@@ -1,41 +1,40 @@
-"""Deepgram transcription service with derived metrics.
+"""Deepgram transcription service with intelligent filler word detection.
 
 Provides:
 - Full transcript with word-level timestamps
-- Filler word detection (um, uh, like, you know)
+- Two-tier filler word detection:
+  1. Deepgram's built-in vocal disfluencies (um, uh, mhmm, etc.)
+  2. LLM-based contextual filler detection (like, you know, basically - only when used as fillers)
 - Speaking pace (WPM) calculation
 - Pause detection (gaps >2s between words)
 """
-import asyncio
-import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional
 
-from deepgram import DeepgramClient, PrerecordedOptions, FileSource
+import asyncio
+import json
+import logging
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional, Set
+
+from anthropic import Anthropic
+from deepgram import PrerecordedOptions, FileSource
 
 from backend.deepgram.deepgram_client import client
 
 logger = logging.getLogger(__name__)
 
-# Filler words to detect
-FILLER_WORDS = {
-    "um", "uh", "uhh", "umm", "er", "err", "ah", "ahh",
-    "like", "you know", "basically", "actually", "literally",
-    "so", "well", "right", "okay", "ok",
-}
 
-# Single-word fillers for word-level detection
-SINGLE_WORD_FILLERS = {
-    "um", "uh", "uhh", "umm", "er", "err", "ah", "ahh",
-    "like", "basically", "actually", "literally",
-    "so", "well", "right", "okay", "ok",
-}
+class FillerType(str, Enum):
+    """Classification of filler word types."""
 
-# Two-word filler patterns
-TWO_WORD_FILLERS = {
-    ("you", "know"),
-}
+    VOCAL_DISFLUENCY = "vocal_disfluency"  # um, uh, mhmm - always fillers
+    CONTEXTUAL = "contextual"  # like, you know, basically - depends on context
+
+
+# Deepgram's recognized vocal disfluencies (always fillers)
+# These are the exact spellings Deepgram uses
+DEEPGRAM_FILLERS: Set[str] = {"uh", "um", "mhmm", "mm-mm", "uh-uh", "uh-huh", "nuh-uh"}
 
 # Pause threshold in seconds
 PAUSE_THRESHOLD = 2.0
@@ -44,38 +43,54 @@ PAUSE_THRESHOLD = 2.0
 @dataclass
 class WordInfo:
     """Individual word with timing information."""
+
     word: str
     start: float  # Start time in seconds
-    end: float    # End time in seconds
+    end: float  # End time in seconds
     confidence: float = 1.0
     is_filler: bool = False
+    filler_type: Optional[FillerType] = None
 
 
 @dataclass
 class PauseInfo:
     """Detected pause between words."""
-    start: float      # Start time in seconds
-    end: float        # End time in seconds
-    duration: float   # Duration in seconds
+
+    start: float  # Start time in seconds
+    end: float  # End time in seconds
+    duration: float  # Duration in seconds
     before_word: str  # Word before the pause
-    after_word: str   # Word after the pause
+    after_word: str  # Word after the pause
+
+
+@dataclass
+class FillerAnalysis:
+    """Detailed filler word analysis."""
+
+    total_count: int
+    vocal_disfluency_count: int  # um, uh, etc.
+    contextual_filler_count: int  # like, you know (when used as fillers)
+    filler_words: List[WordInfo]  # All filler instances with timestamps
+    filler_rate_per_minute: float  # Fillers per minute of speech
 
 
 @dataclass
 class SpeechMetrics:
     """Derived speech metrics from transcription."""
-    filler_count: int
-    filler_words_detail: List[WordInfo]  # List of filler words with timestamps
-    speaking_pace_wpm: int               # Words per minute
-    pause_count: int                     # Number of pauses >2s
-    pauses: List[PauseInfo]             # Detailed pause info
+
+    filler_analysis: FillerAnalysis
+    speaking_pace_wpm: int  # Words per minute (excluding fillers)
+    pause_count: int  # Number of pauses >2s
+    pauses: List[PauseInfo]  # Detailed pause info
     total_words: int
+    content_words: int  # Words excluding fillers
     total_duration_seconds: float
 
 
 @dataclass
 class TranscriptionResult:
     """Complete transcription result with metrics."""
+
     transcript: str
     words: List[WordInfo]
     confidence: float
@@ -92,16 +107,29 @@ class TranscriptionResult:
                     "end": w.end,
                     "confidence": w.confidence,
                     "is_filler": w.is_filler,
+                    "filler_type": w.filler_type.value if w.filler_type else None,
                 }
                 for w in self.words
             ],
             "confidence": self.confidence,
             "metrics": {
-                "filler_count": self.metrics.filler_count,
-                "filler_words_detail": [
-                    {"word": w.word, "start": w.start, "end": w.end}
-                    for w in self.metrics.filler_words_detail
-                ],
+                "filler_analysis": {
+                    "total_count": self.metrics.filler_analysis.total_count,
+                    "vocal_disfluency_count": self.metrics.filler_analysis.vocal_disfluency_count,
+                    "contextual_filler_count": self.metrics.filler_analysis.contextual_filler_count,
+                    "filler_words": [
+                        {
+                            "word": w.word,
+                            "start": w.start,
+                            "end": w.end,
+                            "filler_type": (
+                                w.filler_type.value if w.filler_type else None
+                            ),
+                        }
+                        for w in self.metrics.filler_analysis.filler_words
+                    ],
+                    "filler_rate_per_minute": self.metrics.filler_analysis.filler_rate_per_minute,
+                },
                 "speaking_pace_wpm": self.metrics.speaking_pace_wpm,
                 "pause_count": self.metrics.pause_count,
                 "pauses": [
@@ -115,63 +143,136 @@ class TranscriptionResult:
                     for p in self.metrics.pauses
                 ],
                 "total_words": self.metrics.total_words,
+                "content_words": self.metrics.content_words,
                 "total_duration_seconds": self.metrics.total_duration_seconds,
             },
         }
 
 
-def _count_fillers(words: List[WordInfo]) -> tuple[int, List[WordInfo]]:
-    """Count filler words and return list of filler word instances.
+def _detect_vocal_disfluencies(words: List[WordInfo]) -> List[WordInfo]:
+    """Detect Deepgram's vocal disfluency fillers (um, uh, etc.).
 
-    Detects:
-    - Single filler words: um, uh, like, etc.
-    - Two-word patterns: "you know"
+    These are ALWAYS fillers - no context needed.
     """
-    filler_count = 0
-    filler_instances = []
+    fillers = []
 
-    i = 0
-    while i < len(words):
-        word_lower = words[i].word.lower().strip(".,!?")
+    for word in words:
+        word_clean = word.word.lower().strip(".,!?")
+        if word_clean in DEEPGRAM_FILLERS:
+            word.is_filler = True
+            word.filler_type = FillerType.VOCAL_DISFLUENCY
+            fillers.append(word)
 
-        # Check for two-word fillers first
-        if i + 1 < len(words):
-            next_word_lower = words[i + 1].word.lower().strip(".,!?")
-            if (word_lower, next_word_lower) in TWO_WORD_FILLERS:
-                filler_count += 1
-                # Mark both words as fillers
-                words[i].is_filler = True
-                words[i + 1].is_filler = True
-                filler_instances.append(WordInfo(
-                    word=f"{words[i].word} {words[i + 1].word}",
-                    start=words[i].start,
-                    end=words[i + 1].end,
-                    confidence=min(words[i].confidence, words[i + 1].confidence),
-                    is_filler=True,
-                ))
-                i += 2
-                continue
-
-        # Check for single-word fillers
-        if word_lower in SINGLE_WORD_FILLERS:
-            filler_count += 1
-            words[i].is_filler = True
-            filler_instances.append(words[i])
-
-        i += 1
-
-    return filler_count, filler_instances
+    return fillers
 
 
-def _calculate_speaking_pace(words: List[WordInfo], duration_seconds: float) -> int:
+async def _detect_contextual_fillers_with_llm(
+    transcript: str,
+    words: List[WordInfo],
+    anthropic_client: Optional[Anthropic] = None,
+) -> List[WordInfo]:
+    """Use LLM to detect contextual filler words.
+
+    Words like "like", "you know", "basically", "actually", "literally", "so",
+    "right", "I mean" are only fillers in certain contexts. An LLM can understand
+    the difference between:
+    - "I like pizza" (not a filler)
+    - "It was, like, really good" (filler)
+
+    API_CALL: Anthropic Claude API
+    """
+    if not anthropic_client:
+        try:
+            anthropic_client = Anthropic()
+        except Exception as e:
+            logger.warning(f"Could not initialize Anthropic client: {e}")
+            return []
+
+    if not transcript.strip():
+        return []
+
+    # Build word list with indices for the LLM to reference
+    word_list = [
+        {"index": i, "word": w.word, "start": w.start, "end": w.end}
+        for i, w in enumerate(words)
+        if not w.is_filler  # Skip already-detected vocal disfluencies
+    ]
+
+    prompt = f"""Analyze this speech transcript and identify words/phrases used as FILLER words or verbal tics.
+
+TRANSCRIPT:
+"{transcript}"
+
+WORD LIST WITH TIMESTAMPS:
+{json.dumps(word_list, indent=2)}
+
+FILLER DETECTION RULES:
+- Only mark words as fillers when they're used as verbal tics, NOT when they have semantic meaning
+- Common contextual fillers include: "like", "you know", "basically", "actually", "literally", "so", "right", "I mean", "kind of", "sort of", "well", "okay"
+
+EXAMPLES:
+- "I like pizza" → "like" is NOT a filler (it's a verb)
+- "It was, like, amazing" → "like" IS a filler (verbal tic)
+- "You know the answer" → "you know" is NOT a filler (asking about knowledge)
+- "It's, you know, complicated" → "you know" IS a filler (verbal tic)
+- "I actually went there" → "actually" might be a filler if it adds no meaning
+- "Actually, that's wrong" → "actually" is NOT a filler (contrast marker)
+
+Return a JSON array of filler word indices. Only include words that are clearly being used as fillers, not for their semantic meaning.
+
+Return ONLY valid JSON in this format:
+{{"filler_indices": [1, 5, 12]}}
+
+If no contextual fillers are found, return:
+{{"filler_indices": []}}"""
+
+    try:
+        response = await asyncio.to_thread(
+            anthropic_client.messages.create,
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        # Parse response
+        response_text = response.content[0].text.strip()
+
+        # Extract JSON from response (handle potential markdown formatting)
+        if "```" in response_text:
+            # Extract JSON from code block
+            start = response_text.find("{")
+            end = response_text.rfind("}") + 1
+            response_text = response_text[start:end]
+
+        result = json.loads(response_text)
+        filler_indices = result.get("filler_indices", [])
+
+        # Mark the detected words as contextual fillers
+        contextual_fillers = []
+        for idx in filler_indices:
+            if 0 <= idx < len(words):
+                words[idx].is_filler = True
+                words[idx].filler_type = FillerType.CONTEXTUAL
+                contextual_fillers.append(words[idx])
+
+        logger.info(f"LLM detected {len(contextual_fillers)} contextual fillers")
+        return contextual_fillers
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse LLM response as JSON: {e}")
+        return []
+    except Exception as e:
+        logger.warning(f"LLM filler detection failed: {e}")
+        return []
+
+
+def _calculate_speaking_pace(
+    words: List[WordInfo],
+    duration_seconds: float,
+) -> int:
     """Calculate speaking pace in words per minute.
 
-    Args:
-        words: List of words with timestamps
-        duration_seconds: Total duration of the audio
-
-    Returns:
-        Words per minute (WPM)
+    Only counts content words (excludes fillers) for meaningful pace calculation.
     """
     if duration_seconds <= 0:
         return 0
@@ -196,30 +297,24 @@ def _calculate_speaking_pace(words: List[WordInfo], duration_seconds: float) -> 
 
 
 def _detect_pauses(words: List[WordInfo]) -> List[PauseInfo]:
-    """Detect pauses longer than threshold between words.
-
-    Args:
-        words: List of words with timestamps
-
-    Returns:
-        List of detected pauses
-    """
+    """Detect pauses longer than threshold between words."""
     pauses = []
 
     for i in range(len(words) - 1):
         current_word = words[i]
         next_word = words[i + 1]
-
         gap = next_word.start - current_word.end
 
         if gap >= PAUSE_THRESHOLD:
-            pauses.append(PauseInfo(
-                start=current_word.end,
-                end=next_word.start,
-                duration=round(gap, 2),
-                before_word=current_word.word,
-                after_word=next_word.word,
-            ))
+            pauses.append(
+                PauseInfo(
+                    start=current_word.end,
+                    end=next_word.start,
+                    duration=round(gap, 2),
+                    before_word=current_word.word,
+                    after_word=next_word.word,
+                )
+            )
 
     return pauses
 
@@ -227,14 +322,19 @@ def _detect_pauses(words: List[WordInfo]) -> List[PauseInfo]:
 async def transcribe_audio(
     audio_path: str | Path,
     language: str = "en",
+    use_llm_filler_detection: bool = True,
+    anthropic_client: Optional[Anthropic] = None,
 ) -> TranscriptionResult:
     """Transcribe audio file and extract speech metrics.
 
     API_CALL: Deepgram.listen.prerecorded()
+    API_CALL: Anthropic Claude (optional, for contextual filler detection)
 
     Args:
         audio_path: Path to audio or video file (MP4, MOV, WebM, MP3, WAV, etc.)
         language: Language code (default: "en" for English)
+        use_llm_filler_detection: Whether to use LLM for contextual filler detection
+        anthropic_client: Optional pre-configured Anthropic client
 
     Returns:
         TranscriptionResult with transcript, word timestamps, and metrics
@@ -251,92 +351,111 @@ async def transcribe_audio(
         buffer_data = audio_file.read()
 
     # Configure transcription options
-    # Using nova-2 model for best accuracy
+    # filler_words=True ensures Deepgram includes vocal disfluencies in transcript
     options = PrerecordedOptions(
         model="nova-2",
         language=language,
-        punctuate=True,       # Add punctuation
-        diarize=False,        # Skip speaker diarization for speed
-        smart_format=True,    # Smart formatting for numbers, dates
-        filler_words=True,    # Detect filler words (um, uh)
-        utterances=True,      # Group into utterances
+        punctuate=True,
+        diarize=False,
+        smart_format=True,
+        filler_words=True,  # Include um, uh, mhmm, etc.
+        utterances=True,
     )
 
-    # Create file source payload
-    payload: FileSource = {
-        "buffer": buffer_data,
-    }
+    payload: FileSource = {"buffer": buffer_data}
 
-    # API_CALL: Deepgram.listen.rest.v1.transcribe_file()
+    # API_CALL: Deepgram transcription
     response = await asyncio.to_thread(
         client.listen.rest.v1.transcribe_file,
         payload,
         options,
     )
 
-    # Extract results
     result = response.results
-
     if not result or not result.channels:
         raise ValueError("No transcription results returned from Deepgram")
 
     channel = result.channels[0]
-
     if not channel.alternatives:
         raise ValueError("No alternatives in transcription result")
 
     alternative = channel.alternatives[0]
-
-    # Build transcript
     transcript = alternative.transcript or ""
 
-    # Extract word-level timing
+    # Build word list
     words: List[WordInfo] = []
-    raw_words = alternative.words or []
-
-    for w in raw_words:
-        words.append(WordInfo(
-            word=w.word,
-            start=w.start,
-            end=w.end,
-            confidence=getattr(w, "confidence", 1.0),
-            is_filler=False,  # Will be marked in _count_fillers
-        ))
+    for w in alternative.words or []:
+        words.append(
+            WordInfo(
+                word=w.word,
+                start=w.start,
+                end=w.end,
+                confidence=getattr(w, "confidence", 1.0),
+                is_filler=False,
+                filler_type=None,
+            )
+        )
 
     # Calculate confidence
     confidence = alternative.confidence if hasattr(alternative, "confidence") else 0.0
     if confidence == 0.0 and words:
-        # Average word confidence
         confidence = sum(w.confidence for w in words) / len(words)
 
-    # Derive metrics
-    filler_count, filler_words_detail = _count_fillers(words)
-
-    # Get duration from metadata
+    # Get duration
     duration_seconds = 0.0
     if hasattr(result, "metadata") and result.metadata:
         duration_seconds = getattr(result.metadata, "duration", 0.0)
     elif words:
-        # Estimate from word timestamps
         duration_seconds = words[-1].end
 
+    # === FILLER DETECTION (Two-tier approach) ===
+
+    # Tier 1: Detect Deepgram's vocal disfluencies (always fillers)
+    vocal_fillers = _detect_vocal_disfluencies(words)
+    logger.info(f"Detected {len(vocal_fillers)} vocal disfluencies")
+
+    # Tier 2: Use LLM for contextual filler detection (optional)
+    contextual_fillers = []
+    if use_llm_filler_detection and transcript.strip():
+        contextual_fillers = await _detect_contextual_fillers_with_llm(
+            transcript, words, anthropic_client
+        )
+
+    # Combine filler analysis
+    all_fillers = vocal_fillers + contextual_fillers
+    filler_rate = 0.0
+    if duration_seconds > 0:
+        filler_rate = round(len(all_fillers) / (duration_seconds / 60), 2)
+
+    filler_analysis = FillerAnalysis(
+        total_count=len(all_fillers),
+        vocal_disfluency_count=len(vocal_fillers),
+        contextual_filler_count=len(contextual_fillers),
+        filler_words=all_fillers,
+        filler_rate_per_minute=filler_rate,
+    )
+
+    # Calculate other metrics
     speaking_pace = _calculate_speaking_pace(words, duration_seconds)
     pauses = _detect_pauses(words)
+    content_words = len([w for w in words if not w.is_filler])
 
     metrics = SpeechMetrics(
-        filler_count=filler_count,
-        filler_words_detail=filler_words_detail,
+        filler_analysis=filler_analysis,
         speaking_pace_wpm=speaking_pace,
         pause_count=len(pauses),
         pauses=pauses,
         total_words=len(words),
+        content_words=content_words,
         total_duration_seconds=duration_seconds,
     )
 
     logger.info(
         f"Transcription complete: {len(words)} words, "
-        f"{filler_count} fillers, {speaking_pace} WPM, "
-        f"{len(pauses)} pauses"
+        f"{filler_analysis.total_count} fillers "
+        f"({filler_analysis.vocal_disfluency_count} vocal + "
+        f"{filler_analysis.contextual_filler_count} contextual), "
+        f"{speaking_pace} WPM, {len(pauses)} pauses"
     )
 
     return TranscriptionResult(
@@ -347,28 +466,36 @@ async def transcribe_audio(
     )
 
 
+async def transcribe_audio_fast(
+    audio_path: str | Path,
+    language: str = "en",
+) -> TranscriptionResult:
+    """Fast transcription without LLM-based filler detection.
+
+    Use this when speed is more important than detecting contextual fillers.
+    Still detects vocal disfluencies (um, uh, etc.) via Deepgram.
+    """
+    return await transcribe_audio(
+        audio_path=audio_path,
+        language=language,
+        use_llm_filler_detection=False,
+    )
+
+
 async def transcribe_audio_with_cache(
     audio_path: str | Path,
     cache: dict,
     video_id: str,
     language: str = "en",
+    use_llm_filler_detection: bool = True,
 ) -> TranscriptionResult:
-    """Transcribe audio and store results in cache.
+    """Transcribe audio and store results in cache."""
+    result = await transcribe_audio(
+        audio_path,
+        language,
+        use_llm_filler_detection=use_llm_filler_detection,
+    )
 
-    Convenience wrapper that stores results in the provided cache dict.
-
-    Args:
-        audio_path: Path to audio/video file
-        cache: Dict to store results (typically in-memory video cache)
-        video_id: Video ID for cache key
-        language: Language code
-
-    Returns:
-        TranscriptionResult
-    """
-    result = await transcribe_audio(audio_path, language)
-
-    # Store in cache
     cache[video_id] = cache.get(video_id, {})
     cache[video_id]["deepgram_data"] = result.to_dict()
 
