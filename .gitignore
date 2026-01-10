@@ -4,3 +4,4 @@
 .cursorindexingignore
 .cursorignore
 .venv/
+.env
