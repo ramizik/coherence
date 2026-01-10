@@ -5,3 +5,4 @@
 .cursorignore
 .venv/
 .env
+node_modules

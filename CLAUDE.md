@@ -38,9 +38,11 @@ You are assisting backend development for **Coherence**, an AI-powered presentat
 3. **Gemini 1.5 Pro** - Multimodal synthesis (dissonance detection)
 
 ### Frontend Contract
-- Next.js 14 (TypeScript) built by separate team
+- Vite + React 18 (TypeScript) - runs from repository root
+- Frontend code lives in `frontend/` folder, config files in root
 - You provide REST API endpoints marked in their code as `// BACKEND_HOOK:`
 - All responses must match TypeScript interfaces defined in frontend
+- Frontend runs on http://localhost:3000, backend on http://localhost:8000
 
 ---
 

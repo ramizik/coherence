@@ -33,8 +33,9 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 ### Tech Stack (Fixed - No Substitutions)
 
 **Frontend:**
-- Next.js 14 (App Router, TypeScript)
-- TailwindCSS (glassmorphism theme)
+- Vite 6+ with React 18 (TypeScript)
+- TailwindCSS v4 (glassmorphism theme, pre-compiled CSS)
+- shadcn/ui components (Radix UI primitives)
 - Lucide React icons
 
 **Backend:**
@@ -57,6 +58,32 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 - **Pre-cached over live:** Index demo videos beforehand
 - **Hardcoded over config:** Fast iteration priority
 
+### Project Structure
+
+```
+coherence/
+├── index.html              # Vite entry point (loads /frontend/main.tsx)
+├── package.json            # Root package.json for frontend
+├── vite.config.ts          # Vite configuration with path aliases
+├── tsconfig.json           # TypeScript configuration
+├── frontend/               # Frontend source code
+│   ├── main.tsx            # React entry point
+│   ├── App.tsx             # Root component
+│   ├── index.css           # Pre-compiled TailwindCSS
+│   ├── assets/             # Static assets (images, etc.)
+│   ├── components/
+│   │   ├── ui/             # shadcn/ui components
+│   │   ├── upload/         # Upload page components
+│   │   ├── landing/        # Landing page components
+│   │   └── figma/          # Figma-exported utilities
+│   ├── styles/
+│   │   └── globals.css     # Tailwind source CSS
+│   └── types/
+│       └── assets.d.ts     # Type declarations for assets
+├── backend/                # FastAPI backend
+└── documentation/          # Project docs
+```
+
 ---
 
 ## 📋 Reference Documents (Read First)
@@ -69,6 +96,92 @@ Before implementing features, consult these documents in the project context:
 4. **README.md** - Project overview, setup instructions, local development
 
 **Current Stage:** Check `ROADMAP.md` → "Current Focus" section for active tasks
+
+---
+
+## 🔄 Frontend Integration Process
+
+Frontend code is generated externally (Figma Make AI or frontend developers) and delivered as new/updated files. This process will happen **multiple times** during development.
+
+### Integration Checklist
+
+When receiving new frontend code:
+
+1. **Analyze Structure**
+   - Check what files were added/modified in `frontend/`
+   - Identify new components, pages, or assets
+   - Note any new dependencies in delivered code
+
+2. **Fix Figma-Specific Imports**
+   - Convert `figma:asset/...` imports to `@/assets/...`
+   - Example: `import logo from 'figma:asset/logo.png'` → `import logo from '@/assets/logo.png'`
+
+3. **Fix Versioned Package Imports**
+   - Figma exports use versioned imports like `lucide-react@0.487.0`
+   - These are handled by Vite aliases in `vite.config.ts`
+   - If new versioned imports appear, add aliases to `vite.config.ts`
+
+4. **Verify Path Aliases**
+   - `@/` maps to `./frontend/` (configured in vite.config.ts and tsconfig.json)
+   - Asset paths must use `@/assets/...` or relative paths
+
+5. **Check Configuration Files**
+   - `index.html` must reference `/frontend/main.tsx`
+   - `vite.config.ts` aliases must point to `./frontend/` not `./src/`
+   - `tsconfig.json` paths must include `"@/*": ["./frontend/*"]`
+
+6. **Test Integration**
+   - Run `npm install` (add new dependencies if needed)
+   - Run `npm run dev` to start dev server
+   - Verify page loads at http://localhost:3000
+   - Check browser console for errors
+
+### Key Configuration Files
+
+**vite.config.ts** - Critical aliases:
+```typescript
+alias: {
+  // Figma asset alias
+  'figma:asset/filename.png': path.resolve(__dirname, './frontend/assets/filename.png'),
+  // Path alias for imports
+  '@': path.resolve(__dirname, './frontend'),
+  // Versioned package aliases (add as needed)
+  'lucide-react@0.487.0': 'lucide-react',
+  '@radix-ui/react-slot@1.1.2': '@radix-ui/react-slot',
+  // ... other versioned imports
+}
+```
+
+**tsconfig.json** - Path mapping:
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./frontend/*"] }
+  },
+  "include": ["frontend/**/*.ts", "frontend/**/*.tsx", "frontend/types/**/*.d.ts"]
+}
+```
+
+### Common Issues & Fixes
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| `Cannot find module 'figma:asset/...'` | Figma export format | Convert to `@/assets/...` import |
+| `Cannot find module '@radix-ui/react-xxx@1.2.3'` | Versioned import | Add alias in vite.config.ts |
+| `Cannot find module '@/...'` | Path alias not configured | Check tsconfig.json and vite.config.ts |
+| Module not found for CSS | Wrong entry point path | Verify index.html points to `/frontend/main.tsx` |
+| TypeScript errors on assets | Missing type declarations | Add declarations in `frontend/types/assets.d.ts` |
+
+### Run Commands
+
+```bash
+# From repository root:
+npm install          # Install dependencies
+npm run dev          # Start Vite dev server (port 3000)
+npm run build        # Build for production
+npm run typecheck    # Type check without building
+```
 
 ---
 
