@@ -6,6 +6,9 @@ python-multipart>=0.0.9
 # TwelveLabs SDK
 twelvelabs>=1.0.0
 
+# Deepgram SDK (speech-to-text)
+deepgram-sdk>=3.0.0
+
 # Environment variables
 python-dotenv>=1.0.0
 
