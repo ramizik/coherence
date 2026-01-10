@@ -8,6 +8,8 @@ interface UploadZoneProps {
   selectedFile: File | null;
   onFileSelect: (file: File) => void;
   onAnalyze: () => void;
+  isUploading?: boolean;
+  error?: string | null;
 }
 
 /**
@@ -21,10 +23,13 @@ interface UploadZoneProps {
  * 
  * Validation: MP4/MOV, max 500MB, max 3 minutes
  */
-export function UploadZone({ selectedFile, onFileSelect, onAnalyze }: UploadZoneProps) {
+export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading = false, error: externalError }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Combine local and external errors
+  const error = externalError || localError;
 
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -45,11 +50,11 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze }: UploadZone
   const handleFile = (file: File) => {
     const validationError = validateFile(file);
     if (validationError) {
-      setError(validationError);
+      setLocalError(validationError);
       return;
     }
 
-    setError(null);
+    setLocalError(null);
     onFileSelect(file);
   };
 
@@ -94,7 +99,7 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze }: UploadZone
 
   const handleRemoveFile = () => {
     onFileSelect(null as any);
-    setError(null);
+    setLocalError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -129,6 +134,7 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze }: UploadZone
             file={selectedFile}
             onRemove={handleRemoveFile}
             onAnalyze={onAnalyze}
+            isUploading={isUploading}
           />
         ) : (
           // Default/Dragging State
@@ -201,11 +207,13 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze }: UploadZone
 function FileSelectedView({ 
   file, 
   onRemove, 
-  onAnalyze 
+  onAnalyze,
+  isUploading = false,
 }: { 
   file: File; 
   onRemove: () => void;
   onAnalyze: () => void;
+  isUploading?: boolean;
 }) {
   const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
@@ -235,12 +243,14 @@ function FileSelectedView({
       <div className="flex gap-3">
         <button
           onClick={onRemove}
+          disabled={isUploading}
           className="
             px-6 py-2.5 rounded-lg font-semibold text-white
             bg-white/5 border border-white/10
             hover:bg-white/10 hover:border-white/20
             transition-all duration-300
             flex items-center gap-2
+            disabled:opacity-50 disabled:cursor-not-allowed
           "
           style={{ fontWeight: 600 }}
         >
@@ -249,15 +259,17 @@ function FileSelectedView({
         </button>
         <button
           onClick={onAnalyze}
+          disabled={isUploading}
           className="
             px-8 py-2.5 rounded-lg font-semibold text-white
             bg-gradient-to-r from-[#8B5CF6] to-[#06B6D4]
             hover:shadow-lg hover:shadow-purple-500/30 hover:scale-105
             transition-all duration-300
+            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
           "
           style={{ fontWeight: 600 }}
         >
-          Analyze Video
+          {isUploading ? 'Uploading...' : 'Analyze Video'}
         </button>
       </div>
     </div>

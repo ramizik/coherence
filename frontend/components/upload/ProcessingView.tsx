@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Loader2, Video, Brain, Sparkles, X } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Loader2, Video, Brain, Sparkles, X, AlertCircle } from 'lucide-react';
 import { FloatingHexagons } from './FloatingHexagons';
+import { pollStatus, VideoAnalysisError } from '@/lib/services/videoAnalysis';
+import type { StatusResponse } from '@/types';
 
 interface ProcessingViewProps {
+  videoId: string;
   videoName: string;
   onComplete: () => void;
   onCancel: () => void;
@@ -35,49 +38,86 @@ const statusMessages: StatusMessage[] = [
  * 
  * Features:
  * - Animated progress bar with gradient
- * - Rotating status messages
+ * - Real-time status from backend API
  * - Glassmorphic design matching brand aesthetic
- * - Auto-completes after 30 seconds (mock)
+ * - Auto-redirects when processing completes
  * 
  * BACKEND_HOOK: Poll processing status
- * API: GET /api/videos/{videoId}/status
- * Response: { status: 'processing' | 'complete', progress: 0-100 }
- * Redirect to /results when status === 'complete'
+ * ─────────────────────────────────────────
+ * Endpoint: GET /api/videos/{videoId}/status
+ * Request:  None (videoId in URL path)
+ * Response: StatusResponse { videoId, status, progress, stage, etaSeconds, error }
+ * Success:  Update UI with progress; navigate to /results when complete
+ * Error:    Show error state, offer retry
+ * Polling:  Every 3 seconds until status !== 'processing'
+ * Status:   CONNECTED ✅
+ * ─────────────────────────────────────────
  */
-export function ProcessingView({ videoName, onComplete, onCancel }: ProcessingViewProps) {
+export function ProcessingView({ videoId, videoName, onComplete, onCancel }: ProcessingViewProps) {
   const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('Queued for processing...');
+  const [error, setError] = useState<string | null>(null);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
-  // Progress bar animation
+  // Poll status from backend
+  const checkStatus = useCallback(async () => {
+    try {
+      const status: StatusResponse = await pollStatus(videoId);
+      
+      setProgress(status.progress);
+      setStatusMessage(status.stage);
+      setError(null);
+      
+      // Update message index based on progress
+      if (status.progress < 20) setCurrentMessageIndex(0);
+      else if (status.progress < 50) setCurrentMessageIndex(1);
+      else setCurrentMessageIndex(2);
+      
+      if (status.status === 'complete') {
+        setTimeout(() => onComplete(), 500);
+        return true; // Stop polling
+      }
+      
+      if (status.status === 'error') {
+        setError(status.error || 'Processing failed');
+        return true; // Stop polling
+      }
+      
+      return false; // Continue polling
+    } catch (err) {
+      console.error('Status poll failed:', err);
+      if (err instanceof VideoAnalysisError) {
+        setError(err.message);
+      } else {
+        setError('Failed to check status. Please check if the backend is running.');
+      }
+      return true; // Stop polling on error
+    }
+  }, [videoId, onComplete]);
+
+  // Status polling effect
   useEffect(() => {
-    const duration = 30000; // 30 seconds total
-    const interval = 50; // Update every 50ms
-    const increment = (100 / duration) * interval;
-
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + increment;
-        if (next >= 100) {
-          clearInterval(timer);
-          // Delay slightly before completing to show 100%
-          setTimeout(() => onComplete(), 500);
-          return 100;
-        }
-        return next;
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [onComplete]);
-
-  // Rotate status messages every 10 seconds
-  useEffect(() => {
-    const messageInterval = setInterval(() => {
-      setCurrentMessageIndex((prev) => (prev + 1) % statusMessages.length);
-    }, 10000);
-
-    return () => clearInterval(messageInterval);
-  }, []);
+    let isMounted = true;
+    let pollTimeout: NodeJS.Timeout;
+    
+    const poll = async () => {
+      if (!isMounted) return;
+      
+      const shouldStop = await checkStatus();
+      
+      if (!shouldStop && isMounted) {
+        pollTimeout = setTimeout(poll, 3000); // Poll every 3 seconds
+      }
+    };
+    
+    // Start polling
+    poll();
+    
+    return () => {
+      isMounted = false;
+      if (pollTimeout) clearTimeout(pollTimeout);
+    };
+  }, [checkStatus]);
 
   const CurrentIcon = statusMessages[currentMessageIndex].icon;
 
@@ -148,15 +188,22 @@ export function ProcessingView({ videoName, onComplete, onCancel }: ProcessingVi
 
           {/* Status Message */}
           <div className="flex items-center justify-center gap-3 py-6 px-8 bg-white/5 rounded-xl border border-white/10">
-            <CurrentIcon className="w-5 h-5 text-[#06B6D4]" strokeWidth={2} />
-            <p className="text-[15px] text-white/80 font-medium" style={{ fontWeight: 500 }}>
-              {statusMessages[currentMessageIndex].text}
+            {error ? (
+              <AlertCircle className="w-5 h-5 text-[#EF4444]" strokeWidth={2} />
+            ) : (
+              <CurrentIcon className="w-5 h-5 text-[#06B6D4]" strokeWidth={2} />
+            )}
+            <p className={`text-[15px] font-medium ${error ? 'text-[#EF4444]' : 'text-white/80'}`} style={{ fontWeight: 500 }}>
+              {error || statusMessage}
             </p>
           </div>
 
           {/* Info text */}
           <p className="text-[13px] text-white/40 text-center mt-8">
-            This usually takes 20-30 seconds. We're analyzing both your speech and body language.
+            {error 
+              ? 'Please try again or contact support if the issue persists.'
+              : 'This usually takes 20-30 seconds. We\'re analyzing both your speech and body language.'
+            }
           </p>
         </div>
       </div>

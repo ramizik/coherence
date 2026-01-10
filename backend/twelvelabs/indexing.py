@@ -1,6 +1,6 @@
 import os
 from twelvelabs import IndexesCreateRequestModelsItem
-from twelvelabs_client import client
+from backend.twelvelabs.twelvelabs_client import client
 
 
 def get_or_create_index(index_name: str = "presentation-analysis"):

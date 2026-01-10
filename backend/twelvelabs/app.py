@@ -1,6 +1,12 @@
 import os
-from indexing import get_or_create_index, upload_video
-from analysis import get_video_chapters, analyze_full_presentation
+from pathlib import Path
+from dotenv import load_dotenv
+from backend.twelvelabs.indexing import get_or_create_index, upload_video
+from backend.twelvelabs.analysis import get_video_chapters, analyze_full_presentation
+
+# Load environment variables from .env file in repository root
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(env_path)
 
 # Get absolute path relative to this script's location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))

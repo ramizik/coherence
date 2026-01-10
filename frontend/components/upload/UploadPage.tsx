@@ -7,6 +7,7 @@ import { UploadZone } from './UploadZone';
 import { ProcessingView } from './ProcessingView';
 import { ProblemStatement } from '../landing/ProblemStatement';
 import logoImage from '@/assets/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png';
+import { uploadVideo, validateVideoFile, VideoAnalysisError } from '@/lib/services/videoAnalysis';
 
 /**
  * UploadPage - Landing page for Coherence AI presentation coaching platform
@@ -17,34 +18,62 @@ import logoImage from '@/assets/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png';
 export function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [videoId, setVideoId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileSelect = (file: File) => {
+    // Validate file before accepting
+    const validationError = validateVideoFile(file);
+    if (validationError) {
+      setUploadError(validationError);
+      return;
+    }
+    setUploadError(null);
     setSelectedFile(file);
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     // BACKEND_HOOK: Upload video file
-    // API: POST /api/videos/upload
-    // Request: multipart/form-data with 'video' field
-    // Response: { videoId: string, status: 'processing', estimatedTime: number }
-    // Success: Redirect to /processing/{videoId}
-    // Error: Show toast with error.message, allow retry
+    // ─────────────────────────────────────────
+    // Endpoint: POST /api/videos/upload
+    // Request:  FormData with 'video' field (MP4/MOV/WebM, max 500MB)
+    // Response: UploadResponse { videoId, status, estimatedTime, durationSeconds }
+    // Success:  Navigate to /processing/{videoId}
+    // Error:    Show toast with error.message, allow retry if retryable
+    // Status:   CONNECTED ✅
+    // ─────────────────────────────────────────
     
     if (!selectedFile) return;
     
-    // Mock implementation - switch to processing view
-    const mockVideoId = crypto.randomUUID();
-    console.log('Uploading file:', selectedFile?.name, '→ videoId:', mockVideoId);
-    setIsProcessing(true);
-    // In real implementation: router.push(`/processing/${mockVideoId}`);
+    setIsUploading(true);
+    setUploadError(null);
+    
+    try {
+      const response = await uploadVideo(selectedFile);
+      console.log('Upload successful:', response);
+      setVideoId(response.videoId);
+      setIsProcessing(true);
+      // In real implementation with routing: router.push(`/processing/${response.videoId}`);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      if (error instanceof VideoAnalysisError) {
+        setUploadError(error.message);
+      } else {
+        setUploadError('Failed to upload video. Please check if the backend server is running.');
+      }
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleProcessingComplete = () => {
     // BACKEND_HOOK: Redirect to results page
     // router.push(`/results/${videoId}`);
-    console.log('Processing complete! Redirecting to results...');
+    console.log('Processing complete! Redirecting to results for video:', videoId);
     // For now, just reset the state
     // In production, this would navigate to the results page
+    // TODO: When routing is implemented: router.push(`/results/${videoId}`);
   };
 
   const handleCancelProcessing = () => {
@@ -70,8 +99,9 @@ export function UploadPage() {
         </div>
 
         {/* Conditional rendering: Upload view or Processing view */}
-        {isProcessing && selectedFile ? (
+        {isProcessing && selectedFile && videoId ? (
           <ProcessingView 
+            videoId={videoId}
             videoName={selectedFile.name}
             onComplete={handleProcessingComplete}
             onCancel={handleCancelProcessing}
@@ -87,6 +117,8 @@ export function UploadPage() {
               selectedFile={selectedFile}
               onFileSelect={handleFileSelect}
               onAnalyze={handleAnalyze}
+              isUploading={isUploading}
+              error={uploadError}
             />
           </div>
         )}

@@ -202,44 +202,70 @@ import { Slot } from '@radix-ui/react-slot';
  */
 export interface AnalysisResult {
   videoId: string;
-  coherenceScore: number;  // 0-100, calculated by backend
+  videoUrl: string;           // URL to serve video: /videos/{videoId}.mp4
+  durationSeconds: number;    // Video duration
+  coherenceScore: number;     // 0-100, calculated by backend
+  scoreTier: ScoreTier;       // Human-readable tier
   metrics: AnalysisMetrics;
   dissonanceFlags: DissonanceFlag[];
+  timelineHeatmap: TimelinePoint[];  // For timeline visualization
+  strengths: string[];        // What presenter did well
+  priorities: string[];       // Top 3 improvement areas
   transcript?: TranscriptSegment[];  // Optional, for transcript view
-  videoUrl: string;  // URL to serve video: /videos/{videoId}.mp4
 }
+
+export type ScoreTier = 'Needs Work' | 'Good Start' | 'Strong';
 
 /**
  * Metrics extracted from video analysis
  */
 export interface AnalysisMetrics {
-  eyeContact: number;      // Percentage (0-100)
-  fillerWords: number;     // Count of "um", "uh", "like", etc.
-  fidgeting: number;       // Count of fidgeting instances
-  speakingPace: number;    // Words per minute (WPM)
+  eyeContact: number;         // Percentage (0-100)
+  fillerWords: number;        // Count of "um", "uh", "like", etc.
+  fidgeting: number;          // Count of fidgeting instances
+  speakingPace: number;       // Words per minute (WPM)
+  speakingPaceTarget?: string; // e.g., "140-160" WPM
 }
 
 /**
  * A single dissonance flag (visual-verbal mismatch)
  */
 export interface DissonanceFlag {
-  id: string;              // Unique identifier
-  timestamp: number;       // Seconds from video start
-  endTimestamp?: number;   // Optional end time for duration
+  id: string;                 // Unique identifier
+  timestamp: number;          // Seconds from video start
+  endTimestamp?: number;      // End time for clip duration
   type: DissonanceType;
   severity: Severity;
-  description: string;     // What was detected
-  coaching: string;        // Actionable fix advice
-  visualEvidence?: string; // Optional: what TwelveLabs detected
-  verbalEvidence?: string; // Optional: what Deepgram transcribed
+  description: string;        // What was detected
+  coaching: string;           // Actionable fix advice
+  visualEvidence?: string;    // What TwelveLabs detected
+  verbalEvidence?: string;    // What Deepgram transcribed
 }
 
 export type DissonanceType =
-  | 'EMOTIONAL_MISMATCH'   // Happy words + anxious face
-  | 'MISSING_GESTURE'      // "Look at this" without pointing
-  | 'PACING_MISMATCH';     // Dense slide shown too briefly
+  | 'EMOTIONAL_MISMATCH'      // Happy words + anxious face
+  | 'MISSING_GESTURE'         // "Look at this" without pointing
+  | 'PACING_MISMATCH';        // Dense slide shown too briefly
 
 export type Severity = 'HIGH' | 'MEDIUM' | 'LOW';
+
+/**
+ * Point on the timeline heatmap
+ */
+export interface TimelinePoint {
+  timestamp: number;          // Seconds
+  severity: Severity;         // Color coding
+}
+
+/**
+ * Optional transcript segment for detailed view
+ */
+export interface TranscriptSegment {
+  text: string;
+  start: number;
+  end: number;
+  confidence?: number;
+}
 
 // ========================
 // API Request/Response Types
@@ -252,7 +278,8 @@ export type Severity = 'HIGH' | 'MEDIUM' | 'LOW';
 export interface UploadResponse {
   videoId: string;
   status: 'processing';
-  estimatedTime: number;  // Seconds until complete
+  estimatedTime: number;      // Seconds until complete
+  durationSeconds: number;    // Video duration
 }
 
 /**
@@ -261,19 +288,20 @@ export interface UploadResponse {
  */
 export interface StatusResponse {
   videoId: string;
-  status: 'processing' | 'complete' | 'error';
-  progress: number;       // 0-100
-  message: string;        // Current processing step
-  error?: string;         // Error message if status === 'error'
+  status: 'queued' | 'processing' | 'complete' | 'error';
+  progress: number;           // 0-100
+  stage: string;              // Current processing step (for UX)
+  etaSeconds?: number;        // Estimated time remaining
+  error?: string;             // Error message if status === 'error'
 }
 
 /**
  * Standard error response from backend
  */
 export interface ApiError {
-  error: string;          // User-friendly message
-  code: string;           // Error code (e.g., 'VIDEO_TOO_LONG')
-  retryable: boolean;     // Show retry button if true
+  error: string;              // User-friendly message
+  code: string;               // Error code (e.g., 'VIDEO_TOO_LONG')
+  retryable: boolean;         // Show retry button if true
 }
 
 // ========================
@@ -656,52 +684,70 @@ import type { AnalysisResult, StatusResponse } from '@/types';
 
 export const mockAnalysisResult: AnalysisResult = {
   videoId: 'demo-video-1',
+  videoUrl: '/mock-videos/sample-pitch.mp4',
+  durationSeconds: 183,
   coherenceScore: 67,
+  scoreTier: 'Good Start',
   metrics: {
-    eyeContact: 85,
-    fillerWords: 8,
-    fidgeting: 6,
-    speakingPace: 142,
+    eyeContact: 62,
+    fillerWords: 12,
+    fidgeting: 8,
+    speakingPace: 156,
+    speakingPaceTarget: '140-160',
   },
   dissonanceFlags: [
     {
       id: 'flag-1',
-      timestamp: 15.5,
+      timestamp: 45.2,
+      endTimestamp: 48.0,
       type: 'EMOTIONAL_MISMATCH',
       severity: 'HIGH',
-      description: 'You said "We\'re thrilled about Q4 results" but your face showed anxiety',
-      coaching: 'Smile with teeth and lean forward 10° when expressing enthusiasm.',
-      visualEvidence: 'TwelveLabs: "person showing anxiety" detected at 0:15',
+      description: 'Said "thrilled to present" but facial expression showed anxiety',
+      coaching: 'Practice saying this line while smiling in a mirror. Your face should match your excitement.',
+      visualEvidence: 'TwelveLabs: "person looking anxious" at 0:43-0:48',
       verbalEvidence: 'Deepgram: "thrilled" (positive sentiment)',
     },
     {
       id: 'flag-2',
-      timestamp: 45.2,
+      timestamp: 83.5,
       type: 'MISSING_GESTURE',
       severity: 'MEDIUM',
-      description: 'You said "Look at this chart" but no pointing gesture detected',
-      coaching: 'Point at the screen or use open palm gesture to guide attention.',
-      verbalEvidence: 'Deepgram: deictic phrase "this chart" detected',
+      description: 'Said "look at this data" without pointing at screen',
+      coaching: 'When referencing visuals, physically point to anchor audience attention.',
+      verbalEvidence: 'Deepgram: deictic phrase "this data" detected',
     },
     {
       id: 'flag-3',
       timestamp: 135.8,
+      endTimestamp: 149.8,
       type: 'PACING_MISMATCH',
       severity: 'HIGH',
-      description: 'Slide 4 contains 127 words but you only spent 14 seconds on it',
+      description: 'Slide 4 contains 127 words but only shown for 14 seconds',
       coaching: 'Either reduce slide text to <50 words or extend explanation to ~45 seconds.',
     },
   ],
-  videoUrl: '/mock-videos/sample-pitch.mp4',
+  timelineHeatmap: [
+    { timestamp: 12, severity: 'LOW' },
+    { timestamp: 45, severity: 'HIGH' },
+    { timestamp: 83, severity: 'MEDIUM' },
+    { timestamp: 135, severity: 'HIGH' },
+  ],
+  strengths: ['Clear voice projection', 'Logical structure', 'Good pacing overall'],
+  priorities: [
+    'Reduce nervous fidgeting (8 instances detected)',
+    'Increase eye contact with camera (currently 62%, target 80%)',
+    'Match facial expressions to emotional language',
+  ],
 };
 
 export const mockStatusSequence: StatusResponse[] = [
-  { videoId: 'demo', status: 'processing', progress: 10, message: 'Extracting audio...' },
-  { videoId: 'demo', status: 'processing', progress: 25, message: 'Transcribing speech...' },
-  { videoId: 'demo', status: 'processing', progress: 45, message: 'Analyzing body language...' },
-  { videoId: 'demo', status: 'processing', progress: 65, message: 'Detecting dissonance...' },
-  { videoId: 'demo', status: 'processing', progress: 85, message: 'Generating insights...' },
-  { videoId: 'demo', status: 'complete', progress: 100, message: 'Analysis complete!' },
+  { videoId: 'demo', status: 'queued', progress: 0, stage: 'Queued for processing...' },
+  { videoId: 'demo', status: 'processing', progress: 10, stage: 'Extracting audio...', etaSeconds: 50 },
+  { videoId: 'demo', status: 'processing', progress: 25, stage: 'Transcribing speech...', etaSeconds: 40 },
+  { videoId: 'demo', status: 'processing', progress: 45, stage: 'Analyzing body language...', etaSeconds: 30 },
+  { videoId: 'demo', status: 'processing', progress: 65, stage: 'Detecting dissonance patterns...', etaSeconds: 20 },
+  { videoId: 'demo', status: 'processing', progress: 85, stage: 'Generating coaching insights...', etaSeconds: 10 },
+  { videoId: 'demo', status: 'complete', progress: 100, stage: 'Analysis complete!' },
 ];
 ```
 

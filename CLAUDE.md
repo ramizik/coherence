@@ -80,27 +80,38 @@ You are assisting backend development for **Coherence**, an AI-powered presentat
 ## 📁 File Structure
 
 ```
-/app
-  /main.py                  # FastAPI app entry
-  /routers
-    /videos.py              # Upload, status, results endpoints
-  /services
-    /twelvelabs.py          # Video indexing & semantic queries
-    /deepgram.py            # Audio transcription & metrics
-    /gemini.py              # Multimodal synthesis
-    /analysis.py            # Coherence score calculation
-  /models
-    /schemas.py             # Pydantic models matching TS interfaces
-  /utils
-    /video_processing.py    # FFmpeg wrapper
-    /cache.py               # In-memory result storage
-/tests
-  /test_api.py              # Endpoint tests
-  /test_analysis.py         # Logic tests
-/mock_data
-  /sample_results.json      # Pre-generated analysis
-  /videos/                  # Demo videos
+backend/
+├── __init__.py
+├── cli.py                     # CLI tool for testing modules
+├── app/
+│   ├── __init__.py
+│   ├── main.py                # FastAPI app entry (CORS, router includes)
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   └── videos.py          # Upload, status, results, stream endpoints ✅
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── video_service.py   # Video processing, in-memory cache ✅
+│   └── models/
+│       ├── __init__.py
+│       └── schemas.py         # Pydantic models (12 schemas) ✅
+├── twelvelabs/
+│   ├── __init__.py
+│   ├── twelvelabs_client.py   # TwelveLabs SDK client ✅
+│   ├── indexing.py            # Video indexing operations ✅
+│   ├── analysis.py            # Video analysis operations ✅
+│   └── app.py                 # Standalone test script
+├── data/
+│   └── videos/                # Uploaded video storage ✅
+└── README.md                  # Backend setup + CLI docs
 ```
+
+**API Endpoints Implemented:**
+- `POST /api/videos/upload` - Upload video, start processing
+- `GET /api/videos/{id}/status` - Poll processing status
+- `GET /api/videos/{id}/results` - Get analysis results
+- `GET /api/videos/samples/{id}` - Load sample video
+- `GET /api/videos/{id}/stream` - Stream video file
 
 ---
 
@@ -112,27 +123,38 @@ POST /api/videos/upload
 Content-Type: multipart/form-data
 
 Request:
-  - video: File (MP4/MOV, max 500MB)
+  - video: File (MP4/MOV/WebM, max 500MB, max 5 minutes)
 
 Response:
   {
-    "videoId": "uuid",
+    "videoId": "abc-123-uuid",
     "status": "processing",
-    "estimatedTime": 45
+    "estimatedTime": 45,
+    "durationSeconds": 183
   }
 ```
 
-### 2. Check Status
+### 2. Check Status (Poll every 3 seconds)
 ```
 GET /api/videos/{videoId}/status
 
 Response:
   {
-    "status": "processing" | "complete" | "error",
+    "videoId": "abc-123-uuid",
+    "status": "queued" | "processing" | "complete" | "error",
     "progress": 0-100,
-    "message": "Analyzing speech patterns..."
+    "stage": "Analyzing body language...",
+    "etaSeconds": 25,
+    "error": null  // Error message if status === "error"
   }
 ```
+
+**Stage Messages** (for UX):
+- `"Extracting audio..."` (0-15%)
+- `"Transcribing speech..."` (15-30%)
+- `"Analyzing body language..."` (30-60%)
+- `"Detecting dissonance..."` (60-85%)
+- `"Generating insights..."` (85-100%)
 
 ### 3. Get Results
 ```
@@ -140,25 +162,50 @@ GET /api/videos/{videoId}/results
 
 Response: AnalysisResult (matches TypeScript interface)
   {
-    "videoId": "uuid",
+    "videoId": "abc-123-uuid",
+    "videoUrl": "/videos/abc-123-uuid.mp4",
+    "durationSeconds": 183,
     "coherenceScore": 67,
+    "scoreTier": "Good Start",  // "Needs Work" | "Good Start" | "Strong"
+
     "metrics": {
-      "eyeContact": 85,
-      "fillerWords": 8,
-      "fidgeting": 6,
-      "speakingPace": 142
+      "eyeContact": 62,         // Percentage (0-100)
+      "fillerWords": 12,        // Count
+      "fidgeting": 8,           // Count
+      "speakingPace": 156,      // WPM (target: 140-160)
+      "speakingPaceTarget": "140-160"
     },
+
     "dissonanceFlags": [
       {
-        "timestamp": 15.5,
+        "id": "flag-1",
+        "timestamp": 45.2,
+        "endTimestamp": 48.0,
         "type": "EMOTIONAL_MISMATCH",
         "severity": "HIGH",
-        "description": "...",
-        "coaching": "..."
+        "description": "Said 'thrilled' but facial expression showed anxiety",
+        "coaching": "Practice saying this line while smiling. Your face should match your excitement.",
+        "visualEvidence": "TwelveLabs: 'person looking anxious' at 0:43-0:48",
+        "verbalEvidence": "Deepgram: 'thrilled' (positive sentiment)"
       }
     ],
-    "videoUrl": "/videos/{videoId}.mp4"
+
+    "timelineHeatmap": [
+      {"timestamp": 12, "severity": "LOW"},
+      {"timestamp": 45, "severity": "HIGH"},
+      {"timestamp": 83, "severity": "MEDIUM"}
+    ],
+
+    "strengths": ["Clear voice projection", "Logical structure"],
+    "priorities": ["Reduce nervous fidgeting", "Increase eye contact", "Match emotions to words"]
   }
+```
+
+### 4. Serve Video (for playback)
+```
+GET /videos/{videoId}.mp4
+
+Response: Video file stream with Range request support
 ```
 
 ---
@@ -216,31 +263,68 @@ wpm = calculate_pace(transcript.words, duration)
 ### Gemini (Deep Integration)
 **Purpose:** Multimodal orchestration and dissonance detection
 
-**Inputs:**
-1. Deepgram transcript (text + timestamps)
-2. TwelveLabs semantic results (JSON)
-3. FFmpeg slide screenshots (images)
+**Inputs (Bundle):**
+```python
+synthesis_input = {
+    "transcript": deepgram_data["transcript"],
+    "transcript_words": deepgram_data["words"],  # With timestamps
+    "visual_events": twelvelabs_data,            # Query results
+    "slide_images": [base64_encode(img) for img in slide_paths],
+    "metrics": {
+        "filler_count": 12,
+        "wpm": 156,
+        "eye_contact_pct": 62,
+        "fidget_count": 8
+    }
+}
+```
 
 **Outputs:**
-- Dissonance flags with timestamps
-- Coaching recommendations
-- Coherence score justification
+- Dissonance flags with timestamps, severity, coaching
+- Coherence score with breakdown
+- Strengths and top 3 priorities
 
 **Prompt Strategy:**
 ```python
 prompt = f"""
-Analyze this presentation for visual-verbal dissonance.
+You are an expert presentation coach. Analyze this presentation for
+visual-verbal dissonance. You have:
+
+1. Full transcript with word-level timestamps
+2. Visual analysis showing facial expressions, gestures, eye contact
+3. Slide screenshots with text content
+
+Detect these critical issues:
+
+A) EMOTIONAL_MISMATCH: Speech sentiment contradicts facial expression
+   Example: Saying "excited" at 00:45 but detected "anxious face" at 00:43-00:48
+
+B) MISSING_GESTURE: Deictic phrases without corresponding pointing
+   Example: "Look at this chart" at 01:23 but no "pointing" gesture detected ±3s
+
+C) PACING_MISMATCH: Dense slides shown too briefly for comprehension
+   Example: Slide has 127 words but only shown for 18 seconds (need ~45s)
 
 TRANSCRIPT: {transcript}
-BODY LANGUAGE: {twelvelabs_results}
+BODY LANGUAGE EVENTS: {twelvelabs_results}
+METRICS: {metrics}
 SLIDE IMAGES: [attached]
 
-Detect:
-1. EMOTIONAL_MISMATCH: Positive words + negative expressions
-2. MISSING_GESTURE: "Look at this" without pointing
-3. PACING_MISMATCH: Dense slides shown too briefly
-
-Return JSON with dissonanceFlags array.
+Return JSON matching this exact schema:
+{{
+  "dissonance_flags": [
+    {{
+      "type": "EMOTIONAL_MISMATCH" | "MISSING_GESTURE" | "PACING_MISMATCH",
+      "timestamp": 45.2,
+      "end_timestamp": 48.0,
+      "severity": "HIGH" | "MEDIUM" | "LOW",
+      "description": "What was detected",
+      "coaching": "Specific actionable fix"
+    }}
+  ],
+  "strengths": ["List of things done well"],
+  "priorities": ["Top 3 improvement areas"]
+}}
 """
 ```
 

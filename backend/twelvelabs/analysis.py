@@ -1,4 +1,4 @@
-from twelvelabs_client import client
+from backend.twelvelabs.twelvelabs_client import client
 
 
 def get_video_chapters(video_id: str) -> str:

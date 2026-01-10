@@ -64,8 +64,12 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 coherence/
 ├── index.html              # Vite entry point (loads /frontend/main.tsx)
 ├── package.json            # Root package.json for frontend
+├── requirements.txt        # Python dependencies
 ├── vite.config.ts          # Vite configuration with path aliases
 ├── tsconfig.json           # TypeScript configuration
+├── run_backend.ps1         # Backend startup script (Windows)
+├── run_backend.sh          # Backend startup script (Linux/Mac)
+│
 ├── frontend/               # Frontend source code
 │   ├── main.tsx            # React entry point
 │   ├── App.tsx             # Root component
@@ -73,15 +77,40 @@ coherence/
 │   ├── assets/             # Static assets (images, etc.)
 │   ├── components/
 │   │   ├── ui/             # shadcn/ui components
-│   │   ├── upload/         # Upload page components
+│   │   ├── upload/         # Upload page components (UploadPage, ProcessingView, etc.)
 │   │   ├── landing/        # Landing page components
 │   │   └── figma/          # Figma-exported utilities
-│   ├── styles/
-│   │   └── globals.css     # Tailwind source CSS
-│   └── types/
-│       └── assets.d.ts     # Type declarations for assets
+│   ├── lib/
+│   │   ├── config.ts       # API configuration (API_BASE_URL)
+│   │   ├── mock-data.ts    # Mock data for development
+│   │   └── services/
+│   │       └── videoAnalysis.ts  # API service layer ✅
+│   ├── types/
+│   │   ├── index.ts        # TypeScript interfaces (matches backend) ✅
+│   │   └── assets.d.ts     # Type declarations for assets
+│   └── styles/
+│       └── globals.css     # Tailwind source CSS
+│
 ├── backend/                # FastAPI backend
+│   ├── cli.py              # CLI tool for testing backend modules
+│   ├── app/
+│   │   ├── main.py         # FastAPI entry point ✅
+│   │   ├── routers/
+│   │   │   └── videos.py   # Video API endpoints ✅
+│   │   ├── services/
+│   │   │   └── video_service.py  # Video processing logic ✅
+│   │   └── models/
+│   │       └── schemas.py  # Pydantic schemas ✅
+│   ├── twelvelabs/
+│   │   ├── twelvelabs_client.py  # TwelveLabs SDK client
+│   │   ├── indexing.py     # Video indexing
+│   │   └── analysis.py     # Video analysis
+│   └── data/
+│       └── videos/         # Uploaded video storage
+│
 └── documentation/          # Project docs
+    ├── ROADMAP.md          # Build plan, milestones
+    └── FIGMA_GUIDELINES.md # Frontend generation spec
 ```
 
 ---
@@ -95,7 +124,8 @@ Before implementing features, consult these documents in the project context:
 3. **documentation/ROADMAP.md** - Current stage, task breakdown, acceptance criteria
 4. **README.md** - Project overview, setup instructions, local development
 
-**Current Stage:** Check `ROADMAP.md` → "Current Focus" section for active tasks
+**Current Stage:** `STAGE_1_FOUNDATION` - Backend API structure complete, TwelveLabs integration in progress
+Check `ROADMAP.md` → "Current Focus" section for active tasks
 
 ---
 
@@ -243,41 +273,65 @@ npm run typecheck    # Type check without building
 
 ## 🔗 Integration Contract (Frontend ↔ Backend)
 
+### API Endpoints Summary
+
+| Endpoint | Method | Request | Response |
+|----------|--------|---------|----------|
+| `/api/videos/upload` | POST | FormData (video file) | `UploadResponse` |
+| `/api/videos/{id}/status` | GET | - | `StatusResponse` |
+| `/api/videos/{id}/results` | GET | - | `AnalysisResult` |
+| `/videos/{id}.mp4` | GET | - | Video stream |
+
 ### API Response Format
 
-**Must match TypeScript interfaces exactly:**
+**Must match TypeScript interfaces exactly (see `documentation/FIGMA_GUIDELINES.md`):**
 
 ```typescript
-// Example from frontend
+// Core response types
 interface AnalysisResult {
   videoId: string;
-  coherenceScore: number; // 0-100
-  metrics: {
-    eyeContact: number;
-    fillerWords: number;
-    fidgeting: number;
-    speakingPace: number;
-  };
+  videoUrl: string;
+  durationSeconds: number;
+  coherenceScore: number;      // 0-100
+  scoreTier: 'Needs Work' | 'Good Start' | 'Strong';
+  metrics: AnalysisMetrics;
   dissonanceFlags: DissonanceFlag[];
+  timelineHeatmap: TimelinePoint[];
+  strengths: string[];
+  priorities: string[];
+}
+
+interface StatusResponse {
+  videoId: string;
+  status: 'queued' | 'processing' | 'complete' | 'error';
+  progress: number;            // 0-100
+  stage: string;               // UX message
+  etaSeconds?: number;
+  error?: string;
 }
 ```
 
-**Backend must return this exact shape.**
+**Backend must return these exact shapes.**
 
 ### Integration Points
 
 Frontend marks integration points with:
 ```typescript
 // BACKEND_HOOK: Upload video to backend
-// POST /api/videos/upload
-// Body: FormData with video file
-// Returns: { videoId: string, status: 'processing' }
+// ─────────────────────────────────────────
+// Endpoint: POST /api/videos/upload
+// Request:  FormData with 'video' field (MP4/MOV/WebM, max 500MB)
+// Response: UploadResponse { videoId, status, estimatedTime, durationSeconds }
+// Success:  Navigate to /processing/{videoId}
+// Error:    Show toast with error.message, allow retry if retryable
+// Status:   NOT_CONNECTED
+// ─────────────────────────────────────────
 ```
 
 **When you see `// BACKEND_HOOK:` comments:**
 - Implement the exact endpoint described
-- Match response shape exactly
-- Add error handling
+- Match response shape exactly (use Pydantic models)
+- Add error handling with standard error format
 - Test with frontend team
 
 ### Error Handling
@@ -287,9 +341,11 @@ Frontend marks integration points with:
 {
   "error": "user_friendly_message",
   "code": "ERROR_CODE",
-  "retryable": true/false
+  "retryable": true
 }
 ```
+
+**Error codes:** `VIDEO_TOO_LARGE`, `INVALID_FORMAT`, `PROCESSING_FAILED`, `NOT_FOUND`
 
 **Frontend will display `error` message and show retry button if `retryable: true`.**
 

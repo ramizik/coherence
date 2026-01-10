@@ -144,13 +144,19 @@ npm run dev
 
 ### Backend Setup
 ```bash
-cd backend
+# From repository root
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# Add API keys to .env
-uvicorn app.main:app --reload
+
+# Create .env file in repository root
+# Add API keys: TWELVELABS_API_KEY=your_key_here
+
+# Run backend server
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+# Or use the provided script:
+# Windows: .\run_backend.ps1
+# Linux/Mac: ./run_backend.sh
 # Runs at http://localhost:8000
 ```
 
@@ -187,11 +193,15 @@ coherence/
 │       └── services/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── routers/
-│   │   ├── services/
-│   │   └── models/
-│   └── tests/
+│   │   ├── __init__.py
+│   │   └── main.py              # FastAPI entry point
+│   ├── twelvelabs/
+│   │   ├── __init__.py
+│   │   ├── twelvelabs_client.py  # TwelveLabs client
+│   │   ├── indexing.py          # Video indexing
+│   │   ├── analysis.py           # Video analysis
+│   │   └── app.py               # Standalone test script
+│   └── README.md
 ├── docs/
 │   ├── CLAUDE.md           # AI assistant guidelines
 │   ├── FIGMA_MAKE.md       # Frontend generation spec
