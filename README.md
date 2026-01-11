@@ -295,25 +295,7 @@ Upload Video ─┬─► Deepgram (5-10s)    ─┬─► Merge Results ─► 
 
 ---
 
-## 🎪 Demo Preparation
-
-### Pre-Demo Checklist
-- [x] All three AI services integrated and tested
-- [ ] Index 3 sample videos in TwelveLabs
-- [ ] Cache analysis results for instant loading
-- [ ] Test with WiFi disabled (mock fallback works)
-- [ ] Verify all API keys are active
-- [ ] Rehearse demo 4+ times
-
-### Demo Flow (3 minutes)
-1. **[0:00-0:30]** Hook - Explain dissonance problem
-2. **[0:30-1:30]** Show pre-analyzed sample with dissonance flags
-3. **[1:30-2:30]** Live demo - upload & analyze new video
-4. **[2:30-3:00]** Close - Market size & CTA
-
----
-
-## 🐛 Known Limitations (Hackathon Scope)
+## 🐛 Known Limitations
 
 - ❌ No user authentication
 - ❌ No database persistence (in-memory cache only)
@@ -331,12 +313,6 @@ Upload Video ─┬─► Deepgram (5-10s)    ─┬─► Merge Results ─► 
 - [Backend Guidelines](CLAUDE.md) - Backend development and API contracts
 - [Agent Guidelines](AGENTS.md) - AI assistant integration patterns
 - [Backend README](backend/README.md) - Module documentation and CLI tool
-
----
-
-## 📄 License
-
-MIT License - Built for SB Hacks 2025
 
 ---
 
