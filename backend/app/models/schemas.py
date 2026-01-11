@@ -214,3 +214,21 @@ class SampleVideosListResponse(BaseModel):
     """Response containing all available sample videos with their analysis data."""
     samples: List[SampleVideoInfo] = Field(..., description="List of sample videos")
     allCached: bool = Field(..., description="Whether all samples are cached and ready")
+
+
+# ========================
+# PDF Report Types
+# ========================
+
+class ImprovementLesson(BaseModel):
+    """A personalized improvement lesson for the PDF report."""
+    problemType: str = Field(..., description="Category of the problem (e.g., 'eye_contact', 'filler_words')")
+    title: str = Field(..., description="Catchy, encouraging title for the lesson")
+    description: str = Field(..., description="Why this matters and what improvement looks like")
+    exercises: List[str] = Field(..., description="3-5 specific, actionable exercises")
+    timeline: str = Field(..., description="Realistic timeframe to see improvement")
+    successMetrics: str = Field(..., description="How to measure improvement")
+    priority: int = Field(1, ge=1, le=5, description="Priority level (1 = most important)")
+
+    class Config:
+        populate_by_name = True

@@ -321,6 +321,46 @@ function generateBasicTranscript(apiResult: ApiAnalysisResult): TranscriptSegmen
 }
 
 // ========================
+// PDF Report Generation
+// ========================
+
+/**
+ * Generate a comprehensive PDF report for a video analysis
+ *
+ * @param videoId - Video ID to generate report for
+ * @returns PDF file as Blob
+ */
+export async function generateReport(videoId: string): Promise<Blob> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/report`, {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to generate report';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Ignore JSON parse errors
+      }
+      throw new VideoAnalysisError(errorMessage, 'REPORT_GENERATION_FAILED', true);
+    }
+
+    return response.blob();
+  } catch (error) {
+    if (error instanceof VideoAnalysisError) {
+      throw error;
+    }
+    throw new VideoAnalysisError(
+      'Failed to generate PDF report. Please try again.',
+      'NETWORK_ERROR',
+      true
+    );
+  }
+}
+
+// ========================
 // Export API Base URL for components
 // ========================
 

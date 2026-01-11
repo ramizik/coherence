@@ -1,6 +1,6 @@
-import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, FileDown, Loader2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchResults, getVideoStreamUrl, VideoAnalysisError } from '../../lib/api';
+import { fetchResults, generateReport, getVideoStreamUrl, VideoAnalysisError } from '../../lib/api';
 import { mockAnalysisResult, type AnalysisResult } from '../../lib/mock-data';
 import { CoachingCard } from './CoachingCard';
 import { CompactMetrics } from './CompactMetrics';
@@ -37,6 +37,8 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const coachingScrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch analysis results from backend
@@ -95,6 +97,31 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
         setAnalysisResult(mockAnalysisResult);
       })
       .finally(() => setIsLoading(false));
+  };
+
+  // Handle PDF report generation
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    setReportError(null);
+
+    try {
+      const blob = await generateReport(videoId);
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `coherence-report-${videoId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate report:', err);
+      setReportError(err instanceof Error ? err.message : 'Failed to generate report');
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   // Handle scroll to detect when user reaches bottom of coaching insights
@@ -244,9 +271,33 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
             )}
           </div>
 
-          {/* Compact Metrics Bar */}
-          <div className="pt-6 border-t border-white/[0.08]">
+          {/* Compact Metrics Bar with Download Report Button */}
+          <div className="pt-6 border-t border-white/[0.08] flex items-center justify-between">
             <CompactMetrics metrics={result.metrics} />
+
+            {/* Download Report Button */}
+            <div className="flex items-center gap-3">
+              {reportError && (
+                <span className="text-red-400 text-sm">{reportError}</span>
+              )}
+              <button
+                onClick={handleGenerateReport}
+                disabled={isGeneratingReport}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
+              >
+                {isGeneratingReport ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="w-4 h-4" />
+                    <span>Download Report</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

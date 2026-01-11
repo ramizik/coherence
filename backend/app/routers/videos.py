@@ -1,10 +1,11 @@
 """Video API router.
 
-Handles video upload, status polling, and results retrieval.
+Handles video upload, status polling, results retrieval, and PDF report generation.
 """
 from fastapi import APIRouter, File, UploadFile, HTTPException, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import Optional
+from io import BytesIO
 import logging
 
 from backend.app.models.schemas import (
@@ -17,6 +18,8 @@ from backend.app.models.schemas import (
     SampleVideosListResponse,
 )
 from backend.app.services import video_service
+from backend.app.services.pdf_service import generate_report_pdf
+from backend.gemini.lessons_generator import generate_improvement_lessons
 
 logger = logging.getLogger(__name__)
 
@@ -277,4 +280,103 @@ async def stream_video(video_id: str):
         path=video_path,
         media_type=media_type,
         filename=f"{video_id}{suffix}",
+    )
+
+
+# ========================
+# PDF Report Endpoint
+# ========================
+
+@router.post(
+    "/{video_id}/report",
+    summary="Generate PDF report",
+    description="Generate a comprehensive PDF report with personalized improvement lessons.",
+    responses={
+        404: {"model": ApiError, "description": "Video not found"},
+        425: {"model": ApiError, "description": "Processing not complete"},
+    },
+)
+async def generate_report(video_id: str):
+    """
+    Generate a comprehensive PDF report for a video analysis.
+
+    - **video_id**: The video ID
+
+    Returns a downloadable PDF file containing:
+    - Cover page with score
+    - Executive summary (Gemini coaching advice)
+    - Metrics breakdown
+    - Detailed coaching insights
+    - Personalized improvement lessons (Gemini-generated)
+    - Full transcript
+    """
+    # Get analysis results first
+    results = await video_service.get_video_results(video_id)
+
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "Video analysis results not found",
+                "code": "NOT_FOUND",
+                "retryable": False,
+            },
+        )
+
+    logger.info(f"Generating PDF report for video: {video_id}")
+
+    # Generate personalized improvement lessons using Gemini
+    try:
+        # Convert metrics to dict format for lessons generator
+        metrics_dict = {
+            "eyeContact": results.metrics.eyeContact,
+            "fillerWords": results.metrics.fillerWords,
+            "fidgeting": results.metrics.fidgeting,
+            "speakingPace": results.metrics.speakingPace,
+        }
+
+        # Convert dissonance flags to dict format
+        flags_dict = [
+            {
+                "type": flag.type.value,
+                "severity": flag.severity.value,
+                "timestamp": flag.timestamp,
+                "description": flag.description,
+                "coaching": flag.coaching,
+            }
+            for flag in results.dissonanceFlags
+        ]
+
+        lessons = await generate_improvement_lessons(
+            metrics=metrics_dict,
+            dissonance_flags=flags_dict,
+            coherence_score=results.coherenceScore,
+        )
+        logger.info(f"Generated {len(lessons)} improvement lessons")
+    except Exception as e:
+        logger.warning(f"Failed to generate improvement lessons: {e}")
+        lessons = []
+
+    # Generate PDF
+    try:
+        pdf_bytes = generate_report_pdf(results, lessons)
+    except Exception as e:
+        logger.error(f"Failed to generate PDF: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to generate PDF report",
+                "code": "PDF_GENERATION_FAILED",
+                "retryable": True,
+            },
+        )
+
+    # Return PDF as streaming response
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="coherence-report-{video_id}.pdf"',
+            "Content-Length": str(len(pdf_bytes)),
+        },
     )
