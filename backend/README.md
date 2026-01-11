@@ -85,6 +85,11 @@ backend/
 │   ├── indexing.py          # Video indexing operations
 │   ├── analysis.py          # Video analysis operations
 │   └── app.py               # Legacy standalone script (use cli.py instead)
+├── deepgram/
+│   ├── __init__.py          # Module exports
+│   ├── deepgram_client.py   # Deepgram SDK v5.x client initialization
+│   ├── transcription.py     # Audio transcription with speech metrics
+│   └── app.py               # Standalone test script for Deepgram
 ├── cli.py                   # CLI tool for testing backend modules
 └── README.md
 ```
@@ -324,12 +329,134 @@ python -m backend.cli workflow --video C:\Users\You\Videos\presentation.mp4
 - Make sure you're running from repository root (where `backend/` folder is located)
 - Use `python -m backend.cli` not `python backend/cli.py`
 
+## Deepgram Module
+
+The Deepgram module provides audio transcription with intelligent speech analysis for presentation coaching.
+
+### Features
+
+- **Full Transcription**: Word-level timestamps with confidence scores
+- **Two-Tier Filler Word Detection**:
+  - **Tier 1 (Vocal Disfluencies)**: Deepgram's built-in detection of "um", "uh", "mhmm", etc. - always classified as fillers
+  - **Tier 2 (Contextual Fillers)**: LLM-powered detection (Claude) of words like "like", "you know", "basically" - only when used as verbal tics, not for semantic meaning
+- **Speaking Pace**: Words-per-minute (WPM) calculation excluding filler words
+- **Pause Detection**: Identifies gaps >2 seconds between words
+
+### API Functions
+
+```python
+from backend.deepgram import transcribe_audio, transcribe_audio_fast, transcribe_audio_with_cache
+
+# Full transcription with LLM filler detection
+result = await transcribe_audio("video.mp4", use_llm_filler_detection=True)
+
+# Fast transcription (Deepgram only, no LLM)
+result = await transcribe_audio_fast("video.mp4")
+
+# Transcription with caching for video processing pipeline
+result = await transcribe_audio_with_cache("video.mp4", cache, video_id)
+```
+
+### Output Format
+
+```json
+{
+  "transcript": "Hello everyone, um, today I'm, uh, thrilled to present...",
+  "words": [
+    {"word": "Hello", "start": 0.5, "end": 0.8},
+    {"word": "um", "start": 1.2, "end": 1.4}
+  ],
+  "confidence": 0.94,
+  "metrics": {
+    "filler_analysis": {
+      "total_count": 12,
+      "vocal_disfluency_count": 8,
+      "contextual_filler_count": 4,
+      "filler_rate_per_minute": 3.5
+    },
+    "speaking_pace_wpm": 156,
+    "pause_count": 2,
+    "total_words": 245,
+    "content_words": 233
+  }
+}
+```
+
+### Testing the Deepgram Module
+
+Run the standalone test script from repository root:
+
+```bash
+# Test with auto-detected video
+python -m backend.deepgram.app
+
+# Test with specific video file
+python -m backend.deepgram.app /path/to/video.mp4
+
+# Fast mode (skip LLM filler detection)
+python -m backend.deepgram.app --fast
+python -m backend.deepgram.app /path/to/video.mp4 --fast
+```
+
+**Example Output:**
+
+```
+============================================================
+  DEEPGRAM TRANSCRIPTION TEST
+============================================================
+
+Video: /path/to/video.mp4
+LLM Filler Detection: Enabled
+
+============================================================
+  TRANSCRIPT
+============================================================
+
+Hello everyone, um, today I'm, uh, thrilled to present...
+
+============================================================
+  SPEECH METRICS
+============================================================
+
+  Total Words:           245
+  Content Words:         233
+  Duration:              02:45.00
+  Speaking Pace:         156 WPM
+  Confidence:            94.00%
+
+============================================================
+  FILLER WORD ANALYSIS
+============================================================
+
+  Total Fillers:         12
+  Vocal Disfluencies:    8 (um, uh, etc.)
+  Contextual Fillers:    4 (like, you know, etc.)
+  Filler Rate:           4.4 per minute
+
+  Filler Words Detected:
+    [00:01.20] "um" (vocal_disfluency)
+    [00:05.80] "like" (contextual)
+    ...
+```
+
+### Data Classes
+
+| Class | Description |
+|-------|-------------|
+| `TranscriptionResult` | Complete transcription with transcript, words, confidence, and metrics |
+| `WordInfo` | Individual word with start/end timestamps, confidence, and filler classification |
+| `SpeechMetrics` | Derived metrics including filler analysis, WPM, and pause detection |
+| `FillerAnalysis` | Detailed filler word breakdown by type |
+| `PauseInfo` | Information about detected pauses between words |
+| `FillerType` | Enum: `VOCAL_DISFLUENCY` or `CONTEXTUAL` |
+
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TWELVELABS_API_KEY` | Yes | TwelveLabs API key for video analysis |
-| `DEEPGRAM_API_KEY` | No | Deepgram API key (for future integration) |
+| `DEEPGRAM_API_KEY` | Yes | Deepgram API key for audio transcription |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key (for LLM-based contextual filler detection) |
 | `GEMINI_API_KEY` | No | Gemini API key (for future integration) |
 
 ## Notes
