@@ -2,7 +2,7 @@
 
 Handles video upload, processing orchestration, and results retrieval.
 Uses in-memory storage for hackathon demo (no database).
-Integrates with TwelveLabs for real video analysis.
+Integrates with TwelveLabs and Deepgram for real video analysis.
 """
 import asyncio
 import os
@@ -34,6 +34,15 @@ def _is_twelvelabs_available() -> bool:
     except Exception:
         return False
 
+# Deepgram integration - check availability at runtime
+def _is_deepgram_available() -> bool:
+    """Check if Deepgram service is available."""
+    try:
+        from backend.deepgram.deepgram_client import is_available
+        return is_available()
+    except Exception:
+        return False
+
 # Import TwelveLabs service (may fail if dependencies missing)
 try:
     from backend.app.services import twelvelabs_service
@@ -43,7 +52,19 @@ except Exception as e:
     TWELVELABS_IMPORTED = False
     twelvelabs_service = None
 
+# Import Deepgram service (may fail if dependencies missing)
+try:
+    from backend.app.services import deepgram_service
+    DEEPGRAM_IMPORTED = True
+except Exception as e:
+    logging.warning(f"Deepgram service import failed: {e}")
+    DEEPGRAM_IMPORTED = False
+    deepgram_service = None
+
 logger = logging.getLogger(__name__)
+
+# In-memory cache for analysis data (used by Gemini later)
+_analysis_cache: Dict[str, Dict[str, Any]] = {}
 
 # ========================
 # In-Memory Storage (Demo)
@@ -264,33 +285,47 @@ def _update_status(video_id: str, progress: int, stage: str, eta: Optional[int] 
     logger.debug(f"Video {video_id}: {progress}% - {stage}")
 
 
-def _convert_twelvelabs_to_result(
+def _convert_analysis_to_result(
     video_id: str,
     video_path: str,
-    analysis: Dict[str, Any]
+    twelvelabs_data: Optional[Dict[str, Any]],
+    deepgram_data: Optional[Dict[str, Any]],
 ) -> AnalysisResult:
-    """Convert TwelveLabs analysis response to AnalysisResult schema.
+    """Convert merged TwelveLabs + Deepgram analysis to AnalysisResult schema.
+
+    Uses TwelveLabs for visual analysis (eye contact, fidgeting, dissonance flags).
+    Uses Deepgram for speech analysis (filler words, speaking pace).
 
     Args:
         video_id: Our internal video ID
         video_path: Path to the video file
-        analysis: Raw analysis from TwelveLabs
+        twelvelabs_data: Analysis from TwelveLabs (or None)
+        deepgram_data: Transcription from Deepgram (or None)
 
     Returns:
         Structured AnalysisResult
     """
-    # Extract metrics
-    raw_metrics = analysis.get("metrics", {})
+    # Extract Deepgram metrics (speech-based)
+    dg_metrics = {}
+    if deepgram_data and DEEPGRAM_IMPORTED and deepgram_service:
+        dg_metrics = deepgram_service.extract_metrics_from_transcription(deepgram_data)
+
+    # Extract TwelveLabs metrics (visual-based)
+    tl_metrics = twelvelabs_data.get("metrics", {}) if twelvelabs_data else {}
+
+    # Merge metrics: Deepgram for speech, TwelveLabs for visual
     metrics = AnalysisMetrics(
-        eyeContact=int(raw_metrics.get("eye_contact_percentage", 60)),
-        fillerWords=int(raw_metrics.get("filler_word_count", 10)),
-        fidgeting=int(raw_metrics.get("fidgeting_count", 5)),
-        speakingPace=int(raw_metrics.get("speaking_pace_wpm", 150)),
+        eyeContact=int(tl_metrics.get("eye_contact_percentage", 60)),
+        # Use Deepgram filler count if available, fallback to TwelveLabs
+        fillerWords=int(dg_metrics.get("filler_word_count", tl_metrics.get("filler_word_count", 10))),
+        fidgeting=int(tl_metrics.get("fidgeting_count", 5)),
+        # Use Deepgram speaking pace if available
+        speakingPace=int(dg_metrics.get("speaking_pace_wpm", tl_metrics.get("speaking_pace_wpm", 150))),
         speakingPaceTarget="140-160",
     )
 
-    # Convert dissonance flags
-    raw_flags = analysis.get("dissonance_flags", [])
+    # Convert dissonance flags from TwelveLabs
+    raw_flags = twelvelabs_data.get("dissonance_flags", []) if twelvelabs_data else []
     dissonance_flags: List[DissonanceFlag] = []
     timeline_points: List[TimelinePoint] = []
 
@@ -333,35 +368,42 @@ def _convert_twelvelabs_to_result(
     # Sort timeline by timestamp
     timeline_points.sort(key=lambda p: p.timestamp)
 
-    # Calculate coherence score
+    # Calculate coherence score using merged metrics
+    merged_metrics_for_score = {
+        "eye_contact_percentage": metrics.eyeContact,
+        "filler_word_count": metrics.fillerWords,
+        "fidgeting_count": metrics.fidgeting,
+        "speaking_pace_wpm": metrics.speakingPace,
+    }
+
     if TWELVELABS_IMPORTED and twelvelabs_service:
-        coherence_score = twelvelabs_service.calculate_coherence_score(raw_metrics, raw_flags)
+        coherence_score = twelvelabs_service.calculate_coherence_score(merged_metrics_for_score, raw_flags)
     else:
         coherence_score = 65
 
     score_tier = _get_score_tier(coherence_score)
 
-    # Get duration from analysis or default
-    duration = float(analysis.get("duration_seconds", 120))
+    # Get duration from Deepgram (more accurate) or TwelveLabs
+    duration = float(dg_metrics.get("total_duration_seconds", 0))
+    if duration == 0 and twelvelabs_data:
+        duration = float(twelvelabs_data.get("duration_seconds", 120))
 
-    # Get strengths and priorities
-    strengths = analysis.get("strengths", [
-        "Video analyzed successfully",
-        "Presentation structure detected"
-    ])
-    priorities = analysis.get("priorities", [
-        "Review flagged moments",
-        "Practice with feedback",
-        "Re-record for comparison"
-    ])
+    # Get strengths and priorities from TwelveLabs
+    strengths = []
+    priorities = []
+    if twelvelabs_data:
+        strengths = twelvelabs_data.get("strengths", [])
+        priorities = twelvelabs_data.get("priorities", [])
 
-    # Determine video URL based on file extension
-    video_ext = Path(video_path).suffix if video_path else ".mp4"
+    if not strengths:
+        strengths = ["Video analyzed successfully", "Presentation structure detected"]
+    if not priorities:
+        priorities = ["Review flagged moments", "Practice with feedback", "Re-record for comparison"]
 
     return AnalysisResult(
         videoId=video_id,
         videoUrl=f"/api/videos/{video_id}/stream",
-        durationSeconds=duration,
+        durationSeconds=duration if duration > 0 else 120,
         coherenceScore=coherence_score,
         scoreTier=score_tier,
         metrics=metrics,
@@ -372,14 +414,171 @@ def _convert_twelvelabs_to_result(
     )
 
 
+def _convert_deepgram_only_result(
+    video_id: str,
+    video_path: str,
+    deepgram_data: Dict[str, Any],
+) -> AnalysisResult:
+    """Convert Deepgram-only analysis to AnalysisResult.
+
+    Used when TwelveLabs is unavailable but Deepgram works.
+    Provides speech metrics but limited visual analysis.
+    """
+    dg_metrics = {}
+    if DEEPGRAM_IMPORTED and deepgram_service:
+        dg_metrics = deepgram_service.extract_metrics_from_transcription(deepgram_data)
+
+    metrics = AnalysisMetrics(
+        eyeContact=50,  # Default - no visual analysis
+        fillerWords=int(dg_metrics.get("filler_word_count", 10)),
+        fidgeting=5,  # Default - no visual analysis
+        speakingPace=int(dg_metrics.get("speaking_pace_wpm", 150)),
+        speakingPaceTarget="140-160",
+    )
+
+    # Generate basic dissonance flags from speech patterns
+    dissonance_flags: List[DissonanceFlag] = []
+    timeline_points: List[TimelinePoint] = []
+
+    # Flag high filler word usage
+    if metrics.fillerWords > 15:
+        dissonance_flags.append(DissonanceFlag(
+            id="flag-filler",
+            timestamp=30.0,
+            type=DissonanceType.PACING_MISMATCH,
+            severity=Severity.MEDIUM,
+            description=f"High filler word usage: {metrics.fillerWords} detected",
+            coaching="Practice pausing instead of using filler words like 'um' and 'uh'.",
+            verbalEvidence=f"Deepgram detected {metrics.fillerWords} filler words",
+        ))
+        timeline_points.append(TimelinePoint(timestamp=30.0, severity=Severity.MEDIUM))
+
+    # Flag speaking pace issues
+    if metrics.speakingPace < 120:
+        dissonance_flags.append(DissonanceFlag(
+            id="flag-pace-slow",
+            timestamp=60.0,
+            type=DissonanceType.PACING_MISMATCH,
+            severity=Severity.LOW,
+            description=f"Speaking pace is slow: {metrics.speakingPace} WPM (target: 140-160)",
+            coaching="Try to speak slightly faster to maintain audience engagement.",
+        ))
+        timeline_points.append(TimelinePoint(timestamp=60.0, severity=Severity.LOW))
+    elif metrics.speakingPace > 180:
+        dissonance_flags.append(DissonanceFlag(
+            id="flag-pace-fast",
+            timestamp=60.0,
+            type=DissonanceType.PACING_MISMATCH,
+            severity=Severity.MEDIUM,
+            description=f"Speaking pace is fast: {metrics.speakingPace} WPM (target: 140-160)",
+            coaching="Slow down to help your audience process the information.",
+        ))
+        timeline_points.append(TimelinePoint(timestamp=60.0, severity=Severity.MEDIUM))
+
+    duration = float(dg_metrics.get("total_duration_seconds", 120))
+
+    # Calculate basic score from speech metrics
+    filler_penalty = min(20, metrics.fillerWords)
+    pace_score = 15 if 140 <= metrics.speakingPace <= 160 else (10 if 120 <= metrics.speakingPace <= 180 else 5)
+    coherence_score = max(30, 70 - filler_penalty + pace_score)
+
+    return AnalysisResult(
+        videoId=video_id,
+        videoUrl=f"/api/videos/{video_id}/stream",
+        durationSeconds=duration if duration > 0 else 120,
+        coherenceScore=coherence_score,
+        scoreTier=_get_score_tier(coherence_score),
+        metrics=metrics,
+        dissonanceFlags=dissonance_flags,
+        timelineHeatmap=timeline_points,
+        strengths=[
+            "Speech transcribed successfully",
+            f"Speaking pace: {metrics.speakingPace} WPM",
+        ],
+        priorities=[
+            "Note: Visual analysis unavailable - only speech analyzed",
+            "Consider re-running with TwelveLabs for full analysis",
+            f"Reduce filler words (currently {metrics.fillerWords})" if metrics.fillerWords > 5 else "Good filler word control",
+        ],
+    )
+
+
+async def _run_deepgram_analysis(video_id: str, video_path: str) -> Optional[Dict[str, Any]]:
+    """Run Deepgram transcription in background.
+
+    Returns transcription result or None if failed/unavailable.
+    """
+    deepgram_available = DEEPGRAM_IMPORTED and _is_deepgram_available()
+
+    if not deepgram_available:
+        logger.warning(f"Deepgram not available for video: {video_id}")
+        return None
+
+    try:
+        logger.info(f"Starting Deepgram transcription for video: {video_id}")
+        result = await deepgram_service.transcribe_video(
+            video_path=video_path,
+            use_llm_filler_detection=False,  # Fast mode for demo
+        )
+        logger.info(f"Deepgram transcription complete for video: {video_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Deepgram transcription failed for {video_id}: {e}")
+        return None
+
+
+async def _run_twelvelabs_analysis(
+    video_id: str,
+    video_path: str,
+    on_status_update=None,
+) -> Optional[Dict[str, Any]]:
+    """Run TwelveLabs video analysis.
+
+    Returns analysis result or None if failed/unavailable.
+    """
+    twelvelabs_available = TWELVELABS_IMPORTED and _is_twelvelabs_available()
+
+    if not twelvelabs_available:
+        logger.warning(f"TwelveLabs not available for video: {video_id}")
+        return None
+
+    try:
+        logger.info(f"Starting TwelveLabs analysis for video: {video_id}")
+
+        # Get or create index
+        index_id = await twelvelabs_service.get_or_create_index()
+        logger.info(f"Using TwelveLabs index: {index_id}")
+
+        # Upload and index video
+        twelvelabs_video_id = await twelvelabs_service.upload_and_index_video(
+            index_id=index_id,
+            video_path=video_path,
+            on_status_update=on_status_update,
+        )
+        logger.info(f"Video indexed with TwelveLabs ID: {twelvelabs_video_id}")
+
+        # Store TwelveLabs video ID for reference
+        _video_storage[video_id]["twelvelabs_video_id"] = twelvelabs_video_id
+
+        # Run presentation analysis
+        analysis = await twelvelabs_service.analyze_presentation(twelvelabs_video_id)
+        logger.info(f"TwelveLabs analysis complete for video: {video_id}")
+
+        return analysis
+    except Exception as e:
+        logger.error(f"TwelveLabs analysis failed for {video_id}: {e}")
+        return None
+
+
 async def _process_video(video_id: str):
-    """Background task to process video with TwelveLabs.
+    """Background task to process video with TwelveLabs and Deepgram in parallel.
 
     Pipeline:
-    1. Get/create TwelveLabs index
-    2. Upload video to TwelveLabs
-    3. Run analysis
-    4. Convert results to our schema
+    1. Start Deepgram transcription (async)
+    2. Start TwelveLabs indexing and analysis (async)
+    3. Wait for both to complete
+    4. Merge results and convert to schema
+    5. Cache for Gemini synthesis (future)
     """
     video_meta = _video_storage.get(video_id)
     if not video_meta:
@@ -396,51 +595,13 @@ async def _process_video(video_id: str):
     video_path = video_meta.get("path")
 
     try:
-        # Check if TwelveLabs is available at runtime
+        # Check service availability
         twelvelabs_available = TWELVELABS_IMPORTED and _is_twelvelabs_available()
+        deepgram_available = DEEPGRAM_IMPORTED and _is_deepgram_available()
 
-        if twelvelabs_available:
-            # ========== REAL TWELVELABS PROCESSING ==========
-            logger.info(f"Starting TwelveLabs processing for video: {video_id}")
-
-            # Stage 1: Get or create index
-            _update_status(video_id, 5, "Connecting to TwelveLabs...", 90)
-            index_id = await twelvelabs_service.get_or_create_index()
-            logger.info(f"Using TwelveLabs index: {index_id}")
-
-            # Stage 2: Upload and index video
-            _update_status(video_id, 15, "Uploading video to TwelveLabs...", 75)
-
-            def on_indexing_status(status):
-                if status == "uploading":
-                    _update_status(video_id, 25, "Uploading video...", 65)
-                elif status == "indexing":
-                    _update_status(video_id, 40, "Indexing video content...", 50)
-                elif status == "validating":
-                    _update_status(video_id, 50, "Validating video...", 40)
-
-            twelvelabs_video_id = await twelvelabs_service.upload_and_index_video(
-                index_id=index_id,
-                video_path=video_path,
-                on_status_update=on_indexing_status,
-            )
-            logger.info(f"Video indexed with TwelveLabs ID: {twelvelabs_video_id}")
-
-            # Store TwelveLabs video ID for reference
-            _video_storage[video_id]["twelvelabs_video_id"] = twelvelabs_video_id
-
-            # Stage 3: Run presentation analysis
-            _update_status(video_id, 60, "Analyzing presentation...", 30)
-            analysis = await twelvelabs_service.analyze_presentation(twelvelabs_video_id)
-            logger.info(f"Analysis complete for video: {video_id}")
-
-            # Stage 4: Convert to our schema
-            _update_status(video_id, 85, "Generating insights...", 10)
-            result = _convert_twelvelabs_to_result(video_id, video_path, analysis)
-
-        else:
-            # ========== MOCK PROCESSING (TwelveLabs not available) ==========
-            logger.warning(f"TwelveLabs not available, using mock analysis for: {video_id}")
+        if not twelvelabs_available and not deepgram_available:
+            # ========== MOCK PROCESSING (No services available) ==========
+            logger.warning(f"No AI services available, using mock analysis for: {video_id}")
 
             mock_stages = [
                 (10, "Preparing video...", 40),
@@ -455,6 +616,83 @@ async def _process_video(video_id: str):
 
             duration = video_meta.get("duration", 120.0)
             result = _generate_mock_result(video_id, duration)
+
+        else:
+            # ========== PARALLEL PROCESSING ==========
+            logger.info(f"Starting parallel analysis for video: {video_id}")
+            logger.info(f"  - TwelveLabs: {'available' if twelvelabs_available else 'unavailable'}")
+            logger.info(f"  - Deepgram: {'available' if deepgram_available else 'unavailable'}")
+
+            _update_status(video_id, 5, "Starting analysis...", 90)
+
+            # Status callback for TwelveLabs
+            def on_twelvelabs_status(status):
+                if status == "uploading":
+                    _update_status(video_id, 15, "Uploading to TwelveLabs...", 75)
+                elif status == "indexing":
+                    _update_status(video_id, 30, "Analyzing video content...", 55)
+                elif status == "validating":
+                    _update_status(video_id, 40, "Validating video...", 45)
+
+            # Run both analyses in parallel
+            _update_status(video_id, 10, "Transcribing speech & analyzing video...", 80)
+
+            deepgram_task = _run_deepgram_analysis(video_id, video_path)
+            twelvelabs_task = _run_twelvelabs_analysis(
+                video_id, video_path, on_twelvelabs_status
+            )
+
+            # Wait for both to complete
+            deepgram_result, twelvelabs_result = await asyncio.gather(
+                deepgram_task,
+                twelvelabs_task,
+                return_exceptions=True,
+            )
+
+            # Handle exceptions from gather
+            if isinstance(deepgram_result, Exception):
+                logger.error(f"Deepgram task exception: {deepgram_result}")
+                deepgram_result = None
+            if isinstance(twelvelabs_result, Exception):
+                logger.error(f"TwelveLabs task exception: {twelvelabs_result}")
+                twelvelabs_result = None
+
+            # Store results in cache for Gemini synthesis
+            # This structured cache is what Gemini will use to generate its report
+            _analysis_cache[video_id] = {
+                "deepgram_data": deepgram_result,
+                "twelvelabs_data": twelvelabs_result,
+                "video_path": video_path,
+                "video_duration": video_meta.get("duration", 0),
+                "processed_at": datetime.utcnow().isoformat(),
+            }
+            logger.info(f"Analysis data cached for Gemini: video_id={video_id}")
+
+            _update_status(video_id, 70, "Merging analysis results...", 20)
+
+            # Merge results
+            if twelvelabs_result:
+                # Use TwelveLabs as base, enhance with Deepgram data
+                _update_status(video_id, 85, "Generating insights...", 10)
+                result = _convert_analysis_to_result(
+                    video_id=video_id,
+                    video_path=video_path,
+                    twelvelabs_data=twelvelabs_result,
+                    deepgram_data=deepgram_result,
+                )
+            elif deepgram_result:
+                # Only Deepgram available - generate basic result
+                _update_status(video_id, 85, "Generating insights from speech...", 10)
+                result = _convert_deepgram_only_result(
+                    video_id=video_id,
+                    video_path=video_path,
+                    deepgram_data=deepgram_result,
+                )
+            else:
+                # Fallback to mock
+                logger.warning(f"Both analyses failed, using mock for: {video_id}")
+                duration = video_meta.get("duration", 120.0)
+                result = _generate_mock_result(video_id, duration)
 
         # Stage 5: Complete
         _results_storage[video_id] = result
@@ -545,3 +783,43 @@ async def get_sample_video(sample_id: str) -> Optional[dict]:
         "videoId": sample_id,
         "status": "complete",
     }
+
+
+# ========================
+# Gemini Integration Helpers
+# ========================
+
+def get_analysis_cache_for_gemini(video_id: str) -> Optional[Dict[str, Any]]:
+    """Get cached analysis data for Gemini report generation.
+
+    This provides access to the raw Deepgram and TwelveLabs data
+    that Gemini will use to synthesize a comprehensive report.
+
+    Args:
+        video_id: Video identifier
+
+    Returns:
+        Dict with deepgram_data, twelvelabs_data, and metadata, or None if not cached
+    """
+    return _analysis_cache.get(video_id)
+
+
+def is_analysis_cached(video_id: str) -> bool:
+    """Check if analysis data is cached for a video.
+
+    Args:
+        video_id: Video identifier
+
+    Returns:
+        True if cached data exists for Gemini
+    """
+    return video_id in _analysis_cache
+
+
+def get_all_cached_video_ids() -> List[str]:
+    """Get list of all video IDs with cached analysis data.
+
+    Returns:
+        List of video IDs that have cached analysis ready for Gemini
+    """
+    return list(_analysis_cache.keys())

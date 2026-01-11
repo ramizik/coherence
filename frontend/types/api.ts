@@ -53,6 +53,32 @@ export interface ApiTranscriptSegment {
   confidence?: number;
 }
 
+// ========================
+// Gemini Report Types
+// ========================
+
+export interface GeminiInsight {
+  category: 'strength' | 'improvement' | 'observation';
+  title: string;
+  description: string;
+  timestamp?: number;
+  priority: number; // 0-10
+}
+
+export interface GeminiReport {
+  summary: string;
+  overallAssessment: string;
+  keyStrengths: GeminiInsight[];
+  areasForImprovement: GeminiInsight[];
+  immediateActions: string[];
+  practiceExercises: string[];
+  speechAnalysis?: string;
+  bodyLanguageAnalysis?: string;
+  contentCoherenceAnalysis?: string;
+  generatedAt?: string;
+  modelUsed?: string;
+}
+
 export interface ApiAnalysisResult {
   videoId: string;
   videoUrl: string;
@@ -65,6 +91,8 @@ export interface ApiAnalysisResult {
   strengths: string[];
   priorities: string[];
   transcript?: ApiTranscriptSegment[];
+  // Gemini comprehensive report (separate tab in frontend)
+  geminiReport?: GeminiReport;
 }
 
 // ========================

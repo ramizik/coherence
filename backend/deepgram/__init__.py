@@ -3,7 +3,7 @@
 Compatible with Deepgram SDK v5.x
 """
 
-from backend.deepgram.deepgram_client import client
+from backend.deepgram.deepgram_client import client, is_available
 from backend.deepgram.transcription import (
     transcribe_audio,
     transcribe_audio_fast,
@@ -18,8 +18,9 @@ from backend.deepgram.transcription import (
 
 __all__ = [
     "client",
+    "is_available",
     "transcribe_audio",
-    "transcribe_audio_fast", 
+    "transcribe_audio_fast",
     "transcribe_audio_with_cache",
     "TranscriptionResult",
     "WordInfo",

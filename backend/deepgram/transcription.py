@@ -32,7 +32,7 @@ from typing import Any, Dict, List, Optional, Set
 from anthropic import Anthropic
 from deepgram import DeepgramClient
 
-from backend.deepgram.deepgram_client import client
+from backend.deepgram.deepgram_client import client, is_available
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +374,12 @@ async def transcribe_audio(
         "confidence": 0.94
     }
     """
+    if not is_available():
+        raise RuntimeError(
+            "Deepgram client not available. "
+            "Please set DEEPGRAM_API_KEY in your .env file."
+        )
+
     audio_path = Path(audio_path)
 
     if not audio_path.exists():
