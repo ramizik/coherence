@@ -33,12 +33,14 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 ### Tech Stack (Fixed - No Substitutions)
 
 **Frontend:**
+
 - Vite 6+ with React 18 (TypeScript)
 - TailwindCSS v4 (glassmorphism theme, pre-compiled CSS)
 - shadcn/ui components (Radix UI primitives)
 - Lucide React icons
 
 **Backend:**
+
 - FastAPI (Python 3.10+)
 - Async background tasks (in-memory)
 - Local filesystem storage (no cloud/MongoDB)
@@ -46,6 +48,7 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 - Local development server
 
 **AI Services:**
+
 - TwelveLabs: Video understanding (semantic search)
 - Deepgram: Speech transcription
 - Gemini: Multimodal synthesis
@@ -138,24 +141,29 @@ Frontend code is generated externally (Figma Make AI or frontend developers) and
 When receiving new frontend code:
 
 1. **Analyze Structure**
+
    - Check what files were added/modified in `frontend/`
    - Identify new components, pages, or assets
    - Note any new dependencies in delivered code
 
 2. **Fix Figma-Specific Imports**
+
    - Convert `figma:asset/...` imports to `@/assets/...`
    - Example: `import logo from 'figma:asset/logo.png'` → `import logo from '@/assets/logo.png'`
 
 3. **Fix Versioned Package Imports**
+
    - Figma exports use versioned imports like `lucide-react@0.487.0`
    - These are handled by Vite aliases in `vite.config.ts`
    - If new versioned imports appear, add aliases to `vite.config.ts`
 
 4. **Verify Path Aliases**
+
    - `@/` maps to `./frontend/` (configured in vite.config.ts and tsconfig.json)
    - Asset paths must use `@/assets/...` or relative paths
 
 5. **Check Configuration Files**
+
    - `index.html` must reference `/frontend/main.tsx`
    - `vite.config.ts` aliases must point to `./frontend/` not `./src/`
    - `tsconfig.json` paths must include `"@/*": ["./frontend/*"]`
@@ -169,6 +177,7 @@ When receiving new frontend code:
 ### Key Configuration Files
 
 **vite.config.ts** - Critical aliases:
+
 ```typescript
 alias: {
   // Figma asset alias
@@ -183,25 +192,33 @@ alias: {
 ```
 
 **tsconfig.json** - Path mapping:
+
 ```json
 {
   "compilerOptions": {
     "baseUrl": ".",
     "paths": { "@/*": ["./frontend/*"] }
   },
-  "include": ["frontend/**/*.ts", "frontend/**/*.tsx", "frontend/types/**/*.d.ts"]
+  "include": [
+    "frontend/**/*.ts",
+    "frontend/**/*.tsx",
+    "frontend/types/**/*.d.ts"
+  ]
 }
 ```
 
 ### Common Issues & Fixes
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| `Cannot find module 'figma:asset/...'` | Figma export format | Convert to `@/assets/...` import |
-| `Cannot find module '@radix-ui/react-xxx@1.2.3'` | Versioned import | Add alias in vite.config.ts |
-| `Cannot find module '@/...'` | Path alias not configured | Check tsconfig.json and vite.config.ts |
-| Module not found for CSS | Wrong entry point path | Verify index.html points to `/frontend/main.tsx` |
-| TypeScript errors on assets | Missing type declarations | Add declarations in `frontend/types/assets.d.ts` |
+| Issue                                            | Cause                                     | Fix                                              |
+| ------------------------------------------------ | ----------------------------------------- | ------------------------------------------------ |
+| `Cannot find module 'figma:asset/...'`           | Figma export format                       | Convert to `@/assets/...` import                 |
+| `Cannot find module '@radix-ui/react-xxx@1.2.3'` | Versioned import                          | Add alias in vite.config.ts                      |
+| `Cannot find module '@/...'`                     | Path alias not configured                 | Check tsconfig.json and vite.config.ts           |
+| Module not found for CSS                         | Wrong entry point path                    | Verify index.html points to `/frontend/main.tsx` |
+| TypeScript errors on assets                      | Missing type declarations                 | Add declarations in `frontend/types/assets.d.ts` |
+| `<style jsx>` warning                            | Next.js styled-jsx syntax                 | Remove `jsx` attribute: `<style>{...}</style>`   |
+| Type mismatch between files                      | Importing types from different locations  | Always import types from `@/types`               |
+| UI design regression                             | Changed layout during backend integration | Only change data source, preserve UI structure   |
 
 ### Run Commands
 
@@ -215,28 +232,141 @@ npm run typecheck    # Type check without building
 
 ---
 
+## ⚠️ New Page Integration Pitfalls (Critical)
+
+**When adding new pages/components from external sources (Figma, frontend devs), watch for these issues:**
+
+### 1. Import Path Consistency
+
+**Problem:** New code uses relative imports (`../../lib/mock-data`) while existing code uses aliases (`@/lib/mock-data`).
+
+**Impact:** Types imported from different paths are treated as different types, causing subtle bugs.
+
+**Fix:** Convert ALL imports to use `@/` aliases:
+
+```tsx
+// ❌ New code often has this
+import { formatTimestamp } from "../../lib/mock-data";
+import { cn } from "../ui/utils";
+
+// ✅ Convert to this
+import { formatTimestamp } from "@/lib/mock-data";
+import { cn } from "@/components/ui/utils";
+```
+
+### 2. Type Definition Duplication
+
+**Problem:** New components define their own interfaces in `mock-data.ts` that duplicate existing types in `@/types/index.ts`.
+
+**Impact:** Two versions of `DissonanceFlag`, `Metrics`, etc. that don't match.
+
+**Fix:**
+
+1. Check if types already exist in `@/types/index.ts`
+2. If yes, import from there instead of redefining
+3. If new fields needed, extend existing types in `@/types/index.ts`
+
+### 3. `<style jsx>` Syntax (NOT for Vite)
+
+**Problem:** `<style jsx>{...}</style>` is Next.js styled-jsx syntax, not standard React.
+
+**Impact:** React warning: "Received `true` for a non-boolean attribute `jsx`"
+
+**Fix:** Remove the `jsx` attribute:
+
+```tsx
+// ❌ Next.js syntax
+<style jsx>{`...`}</style>
+
+// ✅ Standard React
+<style>{`...`}</style>
+```
+
+### 4. UI Design Regression During Backend Integration
+
+**Problem:** When connecting to backend, developer simplifies the UI "temporarily" and forgets to restore it.
+
+**Impact:** Polished glassmorphic card becomes a plain div, losing visual design.
+
+**Fix:** When integrating backend:
+
+1. ONLY change the data source (mock → API call)
+2. DO NOT touch CSS classes, layout structure, or styling
+3. If you must refactor, compare before/after visually
+
+**Example - ProcessingView card:**
+
+```tsx
+// ✅ Original design - PRESERVE THIS
+<div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-12">
+  {/* Content inside card */}
+</div>
+
+// ❌ Accidentally simplified during integration
+<div className="min-h-screen flex items-center justify-center">
+  {/* Content without card container */}
+</div>
+```
+
+### 5. Mock Data Fallback for Demo Reliability
+
+**Problem:** Frontend crashes or shows error when backend is unavailable.
+
+**Impact:** Demo fails if API has issues.
+
+**Fix:** Always include fallback to mock data:
+
+```tsx
+useEffect(() => {
+  fetchResults(videoId)
+    .then(setResult)
+    .catch((err) => {
+      console.error("API failed:", err);
+      setResult(mockAnalysisResult); // ALWAYS fallback
+    });
+}, [videoId]);
+```
+
+### 6. Navigation Callback Naming
+
+**Problem:** Inconsistent prop names (`onComplete`, `onNavigateToResults`, `onProcessingComplete`).
+
+**Impact:** Confusion about what each callback does, integration friction.
+
+**Fix:** Use consistent naming convention:
+
+- `onNavigateTo{Page}` - Navigate forward
+- `onBackTo{Page}` - Navigate back
+- `on{Action}Complete` - Action finished
+
+---
+
 ## 🛠️ Development Workflow
 
 ### Step-by-Step Process
 
 1. **Clarify the Task**
+
    - Ask 1-3 clarifying questions if requirements ambiguous
    - Otherwise, proceed immediately
    - Label assumptions explicitly: "Assuming X, I'll proceed with Y"
 
 2. **Propose the Approach**
+
    - Show smallest deliverable unit
    - Explain tradeoffs: "This is faster but less robust"
    - Highlight demo impact: "Judges will/won't notice this"
    - Suggest cuts: "This feature doesn't improve demo, skip it?"
 
 3. **Implement Incrementally**
+
    - Write code in small, testable chunks
    - Add type hints (Python) or TypeScript types
    - Include docstrings for complex logic
    - No TODO comments - either implement or cut scope
 
 4. **Test Immediately**
+
    - Unit test for logic (in `backend/tests/ and frontend/tests/`)
    - Integration test for API endpoints
    - Manual test for UI components
@@ -250,6 +380,7 @@ npm run typecheck    # Type check without building
 ### Code Quality Standards
 
 **Python (Backend):**
+
 - PEP 8 style (120 char line limit)
 - Type hints on all functions
 - Docstrings for public APIs
@@ -257,6 +388,7 @@ npm run typecheck    # Type check without building
 - Structured logging (not print statements)
 
 **TypeScript (Frontend):**
+
 - No `any` types - always explicit
 - Props interfaces for components
 - JSDoc comments for complex logic
@@ -264,6 +396,7 @@ npm run typecheck    # Type check without building
 - Consistent import order
 
 **Testing:**
+
 - Focus on critical path only (upload → process → results)
 - Mock external APIs for unit tests
 - Integration tests for end-to-end flow
@@ -275,12 +408,12 @@ npm run typecheck    # Type check without building
 
 ### API Endpoints Summary
 
-| Endpoint | Method | Request | Response |
-|----------|--------|---------|----------|
-| `/api/videos/upload` | POST | FormData (video file) | `UploadResponse` |
-| `/api/videos/{id}/status` | GET | - | `StatusResponse` |
-| `/api/videos/{id}/results` | GET | - | `AnalysisResult` |
-| `/videos/{id}.mp4` | GET | - | Video stream |
+| Endpoint                   | Method | Request               | Response         |
+| -------------------------- | ------ | --------------------- | ---------------- |
+| `/api/videos/upload`       | POST   | FormData (video file) | `UploadResponse` |
+| `/api/videos/{id}/status`  | GET    | -                     | `StatusResponse` |
+| `/api/videos/{id}/results` | GET    | -                     | `AnalysisResult` |
+| `/videos/{id}.mp4`         | GET    | -                     | Video stream     |
 
 ### API Response Format
 
@@ -292,8 +425,8 @@ interface AnalysisResult {
   videoId: string;
   videoUrl: string;
   durationSeconds: number;
-  coherenceScore: number;      // 0-100
-  scoreTier: 'Needs Work' | 'Good Start' | 'Strong';
+  coherenceScore: number; // 0-100
+  scoreTier: "Needs Work" | "Good Start" | "Strong";
   metrics: AnalysisMetrics;
   dissonanceFlags: DissonanceFlag[];
   timelineHeatmap: TimelinePoint[];
@@ -303,9 +436,9 @@ interface AnalysisResult {
 
 interface StatusResponse {
   videoId: string;
-  status: 'queued' | 'processing' | 'complete' | 'error';
-  progress: number;            // 0-100
-  stage: string;               // UX message
+  status: "queued" | "processing" | "complete" | "error";
+  progress: number; // 0-100
+  stage: string; // UX message
   etaSeconds?: number;
   error?: string;
 }
@@ -316,6 +449,7 @@ interface StatusResponse {
 ### Integration Points
 
 Frontend marks integration points with:
+
 ```typescript
 // BACKEND_HOOK: Upload video to backend
 // ─────────────────────────────────────────
@@ -329,6 +463,7 @@ Frontend marks integration points with:
 ```
 
 **When you see `// BACKEND_HOOK:` comments:**
+
 - Implement the exact endpoint described
 - Match response shape exactly (use Pydantic models)
 - Add error handling with standard error format
@@ -337,6 +472,7 @@ Frontend marks integration points with:
 ### Error Handling
 
 **Backend errors must return:**
+
 ```json
 {
   "error": "user_friendly_message",
@@ -358,6 +494,7 @@ Frontend marks integration points with:
 **Purpose:** Semantic video search for body language
 
 **Run 10-15 queries per video** (showcase depth):
+
 ```python
 queries = [
     "person smiling",
@@ -370,6 +507,7 @@ queries = [
 ```
 
 **Mark integration:**
+
 ```python
 # API_CALL: TwelveLabs.search()
 # Showcase: 10-15 semantic queries per video
@@ -380,12 +518,14 @@ queries = [
 **Purpose:** Real-time transcription + speech metrics
 
 **Extract:**
+
 - Full transcript with word-level timestamps
 - Filler words: "um", "uh", "like", "you know"
 - Speaking pace (WPM)
 - Pause detection
 
 **Mark integration:**
+
 ```python
 # API_CALL: Deepgram.transcribe()
 ```
@@ -395,11 +535,13 @@ queries = [
 **Purpose:** Multimodal synthesis & dissonance detection
 
 **Inputs:**
+
 1. Deepgram transcript
 2. TwelveLabs results (JSON)
 3. FFmpeg slide screenshots
 
 **Mark integration:**
+
 ```python
 # API_CALL: Gemini.generate_content()
 # FRONTEND_CONTRACT: Returns DissonanceFlag[]
@@ -412,6 +554,7 @@ queries = [
 ### Pre-Demo Preparation
 
 **Must complete before demo day:**
+
 - [ ] Index 3 sample videos in TwelveLabs (night before)
 - [ ] Cache all analysis results (instant load <2s)
 - [ ] Test offline mode (disconnect WiFi, verify cached results work)
@@ -421,22 +564,26 @@ queries = [
 ### Demo Flow (3 Minutes)
 
 **Stage 1 (0:00-1:30):** Show pre-analyzed Sample C
+
 - **Must load instantly** (cached result)
 - Display dissonance flags
 - Timeline visualization
 - Click timeline → video seeks
 
 **Stage 2 (1:30-2:30):** Live demo
+
 - Local file upload
 - Live processing (target <60s)
 - Results display
 
 **Stage 3 (2:30-3:00):** Close
+
 - Market size, business model
 
 ### Fallback Strategy
 
 **If live upload fails:**
+
 ```python
 if processing_time > 60 or api_failure:
     # Immediately pivot to backup
@@ -445,6 +592,7 @@ if processing_time > 60 or api_failure:
 ```
 
 **When implementing features, always ask:**
+
 - "What if API times out during demo?"
 - "What if WiFi drops?"
 - "Can we cache this for reliability?"
@@ -456,24 +604,29 @@ if processing_time > 60 or api_failure:
 ### High-Priority Risks
 
 **Risk:** TwelveLabs indexing >60s
+
 - **Code for:** Pre-indexing script (`scripts/preload_demos.py`)
 - **Test:** Verify samples load <2s
 
 **Risk:** API rate limits
+
 - **Code for:** Separate dev/demo API keys
 - **Test:** Stress test with 10 uploads
 
 **Risk:** Bad venue WiFi
+
 - **Code for:** Offline mode flag
 - **Test:** Load dashboard with network disabled
 
 **Risk:** Poor quality uploaded video
+
 - **Code for:** Client-side validation (lighting check)
 - **Fallback:** Graceful error + pivot to Sample C
 
 ### Demo Day Checklist
 
 **When writing code, consider:**
+
 - Can this work offline? (cache it)
 - Will this be fast enough on stage? (pre-load it)
 - What if API fails? (fallback to cached data)
@@ -494,6 +647,7 @@ if processing_time > 60 or api_failure:
 ### When to Push Back
 
 **You MUST challenge if I propose:**
+
 - Breaking demo reliability (adding complexity, removing fallbacks)
 - Wasting time (perfect architecture, premature optimization)
 - Ignoring risks (no offline mode, no caching)
@@ -501,11 +655,13 @@ if processing_time > 60 or api_failure:
 - Breaking integration contract (changing API shapes)
 
 **Example pushback:**
+
 > "That would require 4+ hours to implement properly. For demo impact, I recommend we mock this with cached data instead. The difference won't be noticeable, and we get 4 hours back for polish."
 
 ### When to Proceed Immediately
 
 **You should NOT ask permission for:**
+
 - Adding error handling
 - Writing tests
 - Improving code clarity
@@ -521,6 +677,7 @@ if processing_time > 60 or api_failure:
 ### Before Implementing
 
 **Always check `ROADMAP.md`:**
+
 1. What is "Current Stage"?
 2. What are active tasks for my role (backend/frontend)?
 3. What are acceptance criteria?
@@ -529,9 +686,11 @@ if processing_time > 60 or api_failure:
 ### After Implementing
 
 **Update `ROADMAP.md`:**
+
 ```markdown
 **Current Focus:** STAGE_2_CORE_ANALYSIS
 **Active Tasks:**
+
 - [x] BK-2.1: Gemini sentiment analysis (COMPLETE)
 - [ ] BK-2.2: Coherence score calculation (IN PROGRESS)
 
@@ -542,6 +701,7 @@ if processing_time > 60 or api_failure:
 ### Progress Communication
 
 **When you complete a task:**
+
 1. Update checkbox in `ROADMAP.md`
 2. Run acceptance test
 3. Report: "✅ BK-2.1 complete. Passed TEST-2.1. Ready for BK-2.2."
@@ -553,6 +713,7 @@ if processing_time > 60 or api_failure:
 ### What to Test
 
 **Critical path only (optimize for demo):**
+
 - Upload endpoint (file validation, storage)
 - Processing flow (status updates, completion)
 - Results endpoint (response shape matches frontend)
@@ -560,6 +721,7 @@ if processing_time > 60 or api_failure:
 - Coherence score (calculation logic)
 
 **Skip (if time-constrained):**
+
 - Edge cases beyond demo scope
 - Exhaustive input validation
 - Long-running stress tests
@@ -567,6 +729,7 @@ if processing_time > 60 or api_failure:
 ### Test Structure
 
 **Backend tests (`tests/`):**
+
 ```python
 def test_upload_valid_video():
     """Upload endpoint accepts valid MP4 and returns videoId"""
@@ -577,9 +740,10 @@ def test_upload_valid_video():
 ```
 
 **Frontend tests:**
+
 ```typescript
-describe('VideoPlayer', () => {
-  it('seeks to timestamp when timeline clicked', () => {
+describe("VideoPlayer", () => {
+  it("seeks to timestamp when timeline clicked", () => {
     // Demo-critical interaction
   });
 });
@@ -590,6 +754,7 @@ describe('VideoPlayer', () => {
 **Every stage in `ROADMAP.md` has acceptance tests.**
 
 **When implementing BK-2.1, check:**
+
 ```markdown
 Stage 2 Success Criteria:
 ✅ Gemini detects emotional mismatches
@@ -604,6 +769,7 @@ Stage 2 Success Criteria:
 ### Do NOT Auto-Generate Docs
 
 **Only create documentation:**
+
 - At milestones (Stage 1 complete, Stage 2 complete)
 - When explicitly prompted: "Generate API.md"
 - For contract changes (TypeScript interfaces updated)
@@ -613,6 +779,7 @@ Stage 2 Success Criteria:
 ### When Documentation IS Needed
 
 **Milestone documentation should include:**
+
 - What changed (API endpoints added, interfaces updated)
 - Integration points (frontend must call new endpoint)
 - Acceptance criteria met (link to `ROADMAP.md`)
@@ -711,6 +878,7 @@ export function VideoPlayer({ videoUrl, onTimeUpdate }: VideoPlayerProps) {
 ### Cut Ruthlessly
 
 **If a feature doesn't improve judge scoring, cut it:**
+
 - Authentication (no judge cares)
 - Database persistence (demo doesn't need it)
 - Comprehensive error handling (happy path + basic errors only)
@@ -732,6 +900,7 @@ export function VideoPlayer({ videoUrl, onTimeUpdate }: VideoPlayerProps) {
 ### When in Doubt
 
 **Ask yourself:**
+
 - Will this be visible in the 3-minute demo?
 - Does this improve our chances of winning?
 - Can this fail during the presentation?
@@ -746,6 +915,7 @@ export function VideoPlayer({ videoUrl, onTimeUpdate }: VideoPlayerProps) {
 ### Status Updates
 
 **After completing a task:**
+
 ```
 ✅ BK-2.1 Complete: Gemini sentiment analysis
 - Tested with 3 sample transcripts
@@ -759,11 +929,13 @@ Blockers: None
 ### Asking for Clarification
 
 **Good questions:**
+
 - "Should coherence score penalties stack or cap at -30?"
 - "Do we cache TwelveLabs results between requests?"
 - "Should offline mode be a flag or auto-detect network?"
 
 **Avoid asking:**
+
 - "Should I write tests?" (Always yes)
 - "Should I add type hints?" (Always yes)
 - "Should I handle errors?" (Always yes)
@@ -771,6 +943,7 @@ Blockers: None
 ### Proposing Tradeoffs
 
 **Template:**
+
 > "Approach A: [description] - Faster but less robust
 > Approach B: [description] - Slower but more reliable
 >

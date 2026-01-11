@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Video, Brain, Sparkles, X, AlertCircle } from 'lucide-react';
+import { AlertCircle, Brain, Loader2, Sparkles, Video, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { pollStatus, STATUS_POLL_INTERVAL, VideoAnalysisError } from '../../lib/api';
+import type { StatusResponse } from '../../types/api';
 import { FloatingHexagons } from './FloatingHexagons';
-import { pollStatus, VideoAnalysisError } from '@/lib/services/videoAnalysis';
-import type { StatusResponse } from '@/types';
 
 interface ProcessingViewProps {
   videoId: string;
@@ -35,13 +35,13 @@ const statusMessages: StatusMessage[] = [
 
 /**
  * ProcessingView - Loading animation shown while video is being analyzed
- * 
+ *
  * Features:
  * - Animated progress bar with gradient
  * - Real-time status from backend API
- * - Glassmorphic design matching brand aesthetic
+ * - Glassmorphic card design matching brand aesthetic
  * - Auto-redirects when processing completes
- * 
+ *
  * BACKEND_HOOK: Poll processing status
  * ─────────────────────────────────────────
  * Endpoint: GET /api/videos/{videoId}/status
@@ -63,26 +63,26 @@ export function ProcessingView({ videoId, videoName, onComplete, onCancel }: Pro
   const checkStatus = useCallback(async () => {
     try {
       const status: StatusResponse = await pollStatus(videoId);
-      
+
       setProgress(status.progress);
       setStatusMessage(status.stage);
       setError(null);
-      
+
       // Update message index based on progress
-      if (status.progress < 20) setCurrentMessageIndex(0);
-      else if (status.progress < 50) setCurrentMessageIndex(1);
+      if (status.progress < 33) setCurrentMessageIndex(0);
+      else if (status.progress < 66) setCurrentMessageIndex(1);
       else setCurrentMessageIndex(2);
-      
+
       if (status.status === 'complete') {
         setTimeout(() => onComplete(), 500);
         return true; // Stop polling
       }
-      
+
       if (status.status === 'error') {
         setError(status.error || 'Processing failed');
         return true; // Stop polling
       }
-      
+
       return false; // Continue polling
     } catch (err) {
       console.error('Status poll failed:', err);
@@ -99,33 +99,34 @@ export function ProcessingView({ videoId, videoName, onComplete, onCancel }: Pro
   useEffect(() => {
     let isMounted = true;
     let pollTimeout: NodeJS.Timeout;
-    
+
     const poll = async () => {
       if (!isMounted) return;
-      
+
       const shouldStop = await checkStatus();
-      
+
       if (!shouldStop && isMounted) {
-        pollTimeout = setTimeout(poll, 3000); // Poll every 3 seconds
+        pollTimeout = setTimeout(poll, STATUS_POLL_INTERVAL);
       }
     };
-    
+
     // Start polling
     poll();
-    
+
     return () => {
       isMounted = false;
       if (pollTimeout) clearTimeout(pollTimeout);
     };
   }, [checkStatus]);
 
-  const CurrentIcon = statusMessages[currentMessageIndex].icon;
+  const CurrentIcon = error ? AlertCircle : statusMessages[currentMessageIndex].icon;
+  const displayMessage = error || statusMessage || statusMessages[currentMessageIndex].text;
 
   return (
     <div className="flex items-center justify-center min-h-screen w-full">
       {/* Floating hexagons with facts */}
       <FloatingHexagons />
-      
+
       <div className="max-w-2xl w-full px-8">
         {/* Processing Card */}
         <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-12">
@@ -181,32 +182,48 @@ export function ProcessingView({ videoId, videoName, onComplete, onCancel }: Pro
                 {Math.round(progress)}%
               </p>
               <p className="text-[13px] text-white/40">
-                {progress < 100 ? 'Processing...' : 'Complete!'}
+                {progress >= 100 ? 'Complete!' : 'Processing...'}
               </p>
             </div>
           </div>
 
           {/* Status Message */}
-          <div className="flex items-center justify-center gap-3 py-6 px-8 bg-white/5 rounded-xl border border-white/10">
-            {error ? (
-              <AlertCircle className="w-5 h-5 text-[#EF4444]" strokeWidth={2} />
-            ) : (
-              <CurrentIcon className="w-5 h-5 text-[#06B6D4]" strokeWidth={2} />
-            )}
-            <p className={`text-[15px] font-medium ${error ? 'text-[#EF4444]' : 'text-white/80'}`} style={{ fontWeight: 500 }}>
-              {error || statusMessage}
+          <div className={`flex items-center justify-center gap-3 py-6 px-8 rounded-xl border ${
+            error
+              ? 'bg-red-500/10 border-red-500/30'
+              : 'bg-white/5 border-white/10'
+          }`}>
+            <CurrentIcon
+              className={`w-5 h-5 ${error ? 'text-[#EF4444]' : 'text-[#06B6D4]'}`}
+              strokeWidth={2}
+            />
+            <p
+              className={`text-[15px] font-medium ${error ? 'text-[#EF4444]' : 'text-white/80'}`}
+              style={{ fontWeight: 500 }}
+            >
+              {displayMessage}
             </p>
           </div>
 
           {/* Info text */}
           <p className="text-[13px] text-white/40 text-center mt-8">
-            {error 
+            {error
               ? 'Please try again or contact support if the issue persists.'
-              : 'This usually takes 20-30 seconds. We\'re analyzing both your speech and body language.'
-            }
+              : "This usually takes a few seconds. We're analyzing both your speech and body language."}
           </p>
         </div>
       </div>
+
+      {/* Custom animation for shimmer effect */}
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
     </div>
   );
 }

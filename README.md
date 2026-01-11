@@ -33,7 +33,7 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 
 ```
 ┌─────────────────┐
-│   Next.js 14    │  ← Frontend (TypeScript + TailwindCSS)
+│   Vite + React  │  ← Frontend (TypeScript + TailwindCSS)
 │  Local Dev      │
 └────────┬────────┘
          │ REST API
@@ -54,9 +54,10 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 ### Technology Stack
 
 **Frontend**
-- Next.js 14 (App Router) - React framework
+- Vite 6+ with React 18 - Build tool and UI framework
 - TypeScript - Type safety
-- TailwindCSS - Glassmorphic UI
+- TailwindCSS v4 - Glassmorphic UI
+- shadcn/ui - Pre-built Radix UI components
 - Lucide React - Icon system
 
 **Backend**
@@ -134,10 +135,8 @@ Weighted algorithm combining:
 
 ### Frontend Setup
 ```bash
-cd frontend
+# From repository root
 npm install
-cp .env.example .env.local
-# Add API endpoint URL to .env.local
 npm run dev
 # Opens at http://localhost:3000
 ```
@@ -162,12 +161,10 @@ uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### Environment Variables
 
-**Frontend** (`.env.local`)
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+**Frontend** (`frontend/lib/config.ts`)
+- API base URL configured in `frontend/lib/config.ts` (defaults to `http://localhost:8000`)
 
-**Backend** (`.env`)
+**Backend** (`.env` in repository root)
 ```
 TWELVELABS_API_KEY=your_key_here
 DEEPGRAM_API_KEY=your_key_here
@@ -181,31 +178,48 @@ GEMINI_API_KEY=your_key_here
 ```
 coherence/
 ├── frontend/
-│   ├── app/
-│   │   ├── upload/page.tsx
-│   │   ├── processing/[id]/page.tsx
-│   │   └── results/[id]/page.tsx
+│   ├── main.tsx            # React entry point
+│   ├── App.tsx             # Root component with routing
 │   ├── components/
-│   │   ├── ui/
-│   │   └── dashboard/
-│   └── lib/
-│       ├── mock-data.ts
-│       └── services/
+│   │   ├── ui/             # shadcn/ui components
+│   │   ├── upload/         # Upload page components
+│   │   │   ├── UploadPage.tsx
+│   │   │   ├── ProcessingView.tsx
+│   │   │   └── UploadZone.tsx
+│   │   ├── results/        # Results dashboard components
+│   │   │   ├── ResultsPage.tsx
+│   │   │   ├── VideoPlayer.tsx
+│   │   │   ├── CoachingCard.tsx
+│   │   │   ├── ScoreBadge.tsx
+│   │   │   ├── DissonanceTimeline.tsx
+│   │   │   └── MetricsRow.tsx
+│   │   └── landing/        # Landing page components
+│   ├── lib/
+│   │   ├── config.ts       # API configuration
+│   │   ├── mock-data.ts    # Mock data for development
+│   │   └── services/      # API service layer (if needed)
+│   └── types/
+│       └── index.ts        # TypeScript interfaces
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   └── main.py              # FastAPI entry point
+│   │   ├── main.py         # FastAPI entry point
+│   │   ├── routers/
+│   │   │   └── videos.py   # Video API endpoints
+│   │   ├── services/
+│   │   │   └── video_service.py  # Video processing logic
+│   │   └── models/
+│   │       └── schemas.py  # Pydantic schemas
 │   ├── twelvelabs/
-│   │   ├── __init__.py
 │   │   ├── twelvelabs_client.py  # TwelveLabs client
 │   │   ├── indexing.py          # Video indexing
-│   │   ├── analysis.py           # Video analysis
-│   │   └── app.py               # Standalone test script
-│   └── README.md
-├── docs/
-│   ├── CLAUDE.md           # AI assistant guidelines
-│   ├── FIGMA_MAKE.md       # Frontend generation spec
-│   └── API.md              # API documentation
+│   │   └── analysis.py          # Video analysis
+│   └── data/
+│       └── videos/         # Uploaded video storage
+├── documentation/
+│   ├── ROADMAP.md          # Build plan and milestones
+│   └── FIGMA_GUIDELINES.md # Frontend generation spec
+├── AGENTS.md               # AI assistant guidelines
+├── CLAUDE.md               # Backend development guidelines
 └── README.md
 ```
 
@@ -288,8 +302,10 @@ pytest tests/ -v
 
 ## 📚 Documentation
 
-- [Frontend Guidelines](documentation/FIGMA_GUIDELINES.md)
-- [Claude Guidelines](CLAUDE.md)
+- [Frontend Guidelines](documentation/FIGMA_GUIDELINES.md) - Frontend generation and integration spec
+- [Backend Guidelines](CLAUDE.md) - Backend development and API contracts
+- [Agent Guidelines](AGENTS.md) - AI assistant guidelines and integration patterns
+- [Roadmap](documentation/ROADMAP.md) - Build plan, milestones, and progress tracking
 
 ---
 
@@ -298,9 +314,10 @@ pytest tests/ -v
 - ❌ No user authentication
 - ❌ No video editing/trimming
 - ❌ No database persistence (in-memory cache only)
-- ❌ No mobile app (web-only, local-only)
+- ❌ No mobile app (web-only, desktop-first design)
 - ❌ No real-time streaming analysis
-- ❌ Processing limited to 3-minute videos
+- ❌ Processing limited to 5-minute videos (demo target: 2-3 minutes)
+- ⚠️ Real analysis pipeline pending (currently returns mock data from backend)
 
 ---
 
@@ -315,7 +332,8 @@ MIT License - Built for SB Hacks 2025
 - **TwelveLabs** - Semantic video understanding API
 - **Deepgram** - Real-time speech transcription
 - **Google** - Gemini 1.5 Pro multimodal AI
-- **Next.js** - Frontend framework
+- **Vite** - Frontend build tool
+- **React** - UI framework
 - **FastAPI** - Backend framework
 
 ---

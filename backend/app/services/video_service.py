@@ -2,13 +2,14 @@
 
 Handles video upload, processing orchestration, and results retrieval.
 Uses in-memory storage for hackathon demo (no database).
+Integrates with TwelveLabs for real video analysis.
 """
 import asyncio
 import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any
 import logging
 
 from backend.app.models.schemas import (
@@ -23,6 +24,24 @@ from backend.app.models.schemas import (
     Severity,
     DissonanceType,
 )
+
+# TwelveLabs integration - check availability at runtime
+def _is_twelvelabs_available() -> bool:
+    """Check if TwelveLabs service is available."""
+    try:
+        from backend.twelvelabs.twelvelabs_client import is_available
+        return is_available()
+    except Exception:
+        return False
+
+# Import TwelveLabs service (may fail if dependencies missing)
+try:
+    from backend.app.services import twelvelabs_service
+    TWELVELABS_IMPORTED = True
+except Exception as e:
+    logging.warning(f"TwelveLabs service import failed: {e}")
+    TWELVELABS_IMPORTED = False
+    twelvelabs_service = None
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +83,7 @@ def _get_score_tier(score: int) -> ScoreTier:
 
 def _generate_mock_result(video_id: str, duration: float = 183.0) -> AnalysisResult:
     """Generate mock analysis result for demo purposes.
-    
+
     TODO: Replace with actual TwelveLabs + Deepgram + Gemini analysis
     """
     return AnalysisResult(
@@ -158,7 +177,7 @@ def _generate_sample_result(sample_id: str) -> AnalysisResult:
     sample = SAMPLE_VIDEOS.get(sample_id)
     if not sample:
         raise ValueError(f"Unknown sample: {sample_id}")
-    
+
     result = _generate_mock_result(sample_id, sample["duration"])
     result.coherenceScore = sample["score"]
     result.scoreTier = _get_score_tier(sample["score"])
@@ -175,29 +194,29 @@ async def upload_video(
     content_type: str,
 ) -> UploadResponse:
     """Handle video upload and start processing.
-    
+
     Args:
         video_file_content: Raw video bytes
         filename: Original filename
         content_type: MIME type
-        
+
     Returns:
         UploadResponse with videoId and estimated processing time
     """
     _ensure_videos_dir()
-    
+
     # Generate unique video ID
     video_id = str(uuid.uuid4())
-    
+
     # Determine file extension
     ext = Path(filename).suffix.lower() or ".mp4"
     if ext not in [".mp4", ".mov", ".webm"]:
         ext = ".mp4"
-    
+
     # Save video file
     video_path = VIDEOS_DIR / f"{video_id}{ext}"
     video_path.write_bytes(video_file_content)
-    
+
     # Store metadata
     _video_storage[video_id] = {
         "id": video_id,
@@ -207,7 +226,7 @@ async def upload_video(
         "uploaded_at": datetime.utcnow().isoformat(),
         "size_bytes": len(video_file_content),
     }
-    
+
     # Initialize status
     _status_storage[video_id] = StatusResponse(
         videoId=video_id,
@@ -216,15 +235,15 @@ async def upload_video(
         stage="Queued for processing...",
         etaSeconds=45,
     )
-    
+
     # Start background processing (non-blocking)
     asyncio.create_task(_process_video(video_id))
-    
+
     logger.info(f"Video uploaded: {video_id} ({filename}, {len(video_file_content)} bytes)")
-    
+
     # TODO: Get actual video duration from file
     duration = 120.0  # Mock duration
-    
+
     return UploadResponse(
         videoId=video_id,
         status="processing",
@@ -233,44 +252,217 @@ async def upload_video(
     )
 
 
-async def _process_video(video_id: str):
-    """Background task to process video.
-    
-    Simulates processing stages for demo.
-    TODO: Integrate actual TwelveLabs, Deepgram, Gemini analysis.
+def _update_status(video_id: str, progress: int, stage: str, eta: Optional[int] = None):
+    """Update processing status for a video."""
+    _status_storage[video_id] = StatusResponse(
+        videoId=video_id,
+        status=ProcessingStatus.PROCESSING if progress < 100 else ProcessingStatus.COMPLETE,
+        progress=progress,
+        stage=stage,
+        etaSeconds=eta,
+    )
+    logger.debug(f"Video {video_id}: {progress}% - {stage}")
+
+
+def _convert_twelvelabs_to_result(
+    video_id: str,
+    video_path: str,
+    analysis: Dict[str, Any]
+) -> AnalysisResult:
+    """Convert TwelveLabs analysis response to AnalysisResult schema.
+
+    Args:
+        video_id: Our internal video ID
+        video_path: Path to the video file
+        analysis: Raw analysis from TwelveLabs
+
+    Returns:
+        Structured AnalysisResult
     """
-    stages = [
-        (10, "Extracting audio...", 40),
-        (25, "Transcribing speech...", 35),
-        (45, "Analyzing body language...", 25),
-        (65, "Detecting dissonance patterns...", 15),
-        (85, "Generating coaching insights...", 8),
-        (100, "Analysis complete!", 0),
-    ]
-    
+    # Extract metrics
+    raw_metrics = analysis.get("metrics", {})
+    metrics = AnalysisMetrics(
+        eyeContact=int(raw_metrics.get("eye_contact_percentage", 60)),
+        fillerWords=int(raw_metrics.get("filler_word_count", 10)),
+        fidgeting=int(raw_metrics.get("fidgeting_count", 5)),
+        speakingPace=int(raw_metrics.get("speaking_pace_wpm", 150)),
+        speakingPaceTarget="140-160",
+    )
+
+    # Convert dissonance flags
+    raw_flags = analysis.get("dissonance_flags", [])
+    dissonance_flags: List[DissonanceFlag] = []
+    timeline_points: List[TimelinePoint] = []
+
+    for i, flag in enumerate(raw_flags):
+        # Map type string to enum
+        flag_type_str = flag.get("type", "EMOTIONAL_MISMATCH")
+        try:
+            flag_type = DissonanceType(flag_type_str)
+        except ValueError:
+            flag_type = DissonanceType.EMOTIONAL_MISMATCH
+
+        # Map severity string to enum
+        severity_str = flag.get("severity", "MEDIUM")
+        try:
+            severity = Severity(severity_str)
+        except ValueError:
+            severity = Severity.MEDIUM
+
+        timestamp = float(flag.get("timestamp_seconds", i * 30))
+        end_timestamp = flag.get("end_timestamp_seconds")
+
+        dissonance_flags.append(DissonanceFlag(
+            id=f"flag-{i+1}",
+            timestamp=timestamp,
+            endTimestamp=float(end_timestamp) if end_timestamp else None,
+            type=flag_type,
+            severity=severity,
+            description=flag.get("description", "Issue detected"),
+            coaching=flag.get("coaching", "Review this section of your presentation"),
+            visualEvidence=flag.get("visual_evidence"),
+            verbalEvidence=flag.get("verbal_evidence"),
+        ))
+
+        # Add to timeline
+        timeline_points.append(TimelinePoint(
+            timestamp=timestamp,
+            severity=severity,
+        ))
+
+    # Sort timeline by timestamp
+    timeline_points.sort(key=lambda p: p.timestamp)
+
+    # Calculate coherence score
+    if TWELVELABS_IMPORTED and twelvelabs_service:
+        coherence_score = twelvelabs_service.calculate_coherence_score(raw_metrics, raw_flags)
+    else:
+        coherence_score = 65
+
+    score_tier = _get_score_tier(coherence_score)
+
+    # Get duration from analysis or default
+    duration = float(analysis.get("duration_seconds", 120))
+
+    # Get strengths and priorities
+    strengths = analysis.get("strengths", [
+        "Video analyzed successfully",
+        "Presentation structure detected"
+    ])
+    priorities = analysis.get("priorities", [
+        "Review flagged moments",
+        "Practice with feedback",
+        "Re-record for comparison"
+    ])
+
+    # Determine video URL based on file extension
+    video_ext = Path(video_path).suffix if video_path else ".mp4"
+
+    return AnalysisResult(
+        videoId=video_id,
+        videoUrl=f"/api/videos/{video_id}/stream",
+        durationSeconds=duration,
+        coherenceScore=coherence_score,
+        scoreTier=score_tier,
+        metrics=metrics,
+        dissonanceFlags=dissonance_flags,
+        timelineHeatmap=timeline_points,
+        strengths=strengths[:4],  # Max 4 strengths
+        priorities=priorities[:3],  # Top 3 priorities
+    )
+
+
+async def _process_video(video_id: str):
+    """Background task to process video with TwelveLabs.
+
+    Pipeline:
+    1. Get/create TwelveLabs index
+    2. Upload video to TwelveLabs
+    3. Run analysis
+    4. Convert results to our schema
+    """
+    video_meta = _video_storage.get(video_id)
+    if not video_meta:
+        logger.error(f"Video metadata not found: {video_id}")
+        _status_storage[video_id] = StatusResponse(
+            videoId=video_id,
+            status=ProcessingStatus.ERROR,
+            progress=0,
+            stage="Video not found",
+            error="Video metadata not found",
+        )
+        return
+
+    video_path = video_meta.get("path")
+
     try:
-        for progress, stage, eta in stages:
-            await asyncio.sleep(2)  # Simulate processing time
-            
-            _status_storage[video_id] = StatusResponse(
-                videoId=video_id,
-                status=ProcessingStatus.PROCESSING if progress < 100 else ProcessingStatus.COMPLETE,
-                progress=progress,
-                stage=stage,
-                etaSeconds=eta if progress < 100 else None,
+        # Check if TwelveLabs is available at runtime
+        twelvelabs_available = TWELVELABS_IMPORTED and _is_twelvelabs_available()
+
+        if twelvelabs_available:
+            # ========== REAL TWELVELABS PROCESSING ==========
+            logger.info(f"Starting TwelveLabs processing for video: {video_id}")
+
+            # Stage 1: Get or create index
+            _update_status(video_id, 5, "Connecting to TwelveLabs...", 90)
+            index_id = await twelvelabs_service.get_or_create_index()
+            logger.info(f"Using TwelveLabs index: {index_id}")
+
+            # Stage 2: Upload and index video
+            _update_status(video_id, 15, "Uploading video to TwelveLabs...", 75)
+
+            def on_indexing_status(status):
+                if status == "uploading":
+                    _update_status(video_id, 25, "Uploading video...", 65)
+                elif status == "indexing":
+                    _update_status(video_id, 40, "Indexing video content...", 50)
+                elif status == "validating":
+                    _update_status(video_id, 50, "Validating video...", 40)
+
+            twelvelabs_video_id = await twelvelabs_service.upload_and_index_video(
+                index_id=index_id,
+                video_path=video_path,
+                on_status_update=on_indexing_status,
             )
-            
-            logger.debug(f"Video {video_id}: {progress}% - {stage}")
-        
-        # Generate and store results
-        video_meta = _video_storage.get(video_id, {})
-        duration = video_meta.get("duration", 120.0)
-        _results_storage[video_id] = _generate_mock_result(video_id, duration)
-        
+            logger.info(f"Video indexed with TwelveLabs ID: {twelvelabs_video_id}")
+
+            # Store TwelveLabs video ID for reference
+            _video_storage[video_id]["twelvelabs_video_id"] = twelvelabs_video_id
+
+            # Stage 3: Run presentation analysis
+            _update_status(video_id, 60, "Analyzing presentation...", 30)
+            analysis = await twelvelabs_service.analyze_presentation(twelvelabs_video_id)
+            logger.info(f"Analysis complete for video: {video_id}")
+
+            # Stage 4: Convert to our schema
+            _update_status(video_id, 85, "Generating insights...", 10)
+            result = _convert_twelvelabs_to_result(video_id, video_path, analysis)
+
+        else:
+            # ========== MOCK PROCESSING (TwelveLabs not available) ==========
+            logger.warning(f"TwelveLabs not available, using mock analysis for: {video_id}")
+
+            mock_stages = [
+                (10, "Preparing video...", 40),
+                (30, "Analyzing content...", 30),
+                (60, "Detecting patterns...", 20),
+                (85, "Generating insights...", 10),
+            ]
+
+            for progress, stage, eta in mock_stages:
+                _update_status(video_id, progress, stage, eta)
+                await asyncio.sleep(2)  # Simulate processing time
+
+            duration = video_meta.get("duration", 120.0)
+            result = _generate_mock_result(video_id, duration)
+
+        # Stage 5: Complete
+        _results_storage[video_id] = result
+        _update_status(video_id, 100, "Analysis complete!", None)
         logger.info(f"Video processing complete: {video_id}")
-        
+
     except Exception as e:
-        logger.error(f"Video processing failed: {video_id} - {e}")
+        logger.error(f"Video processing failed: {video_id} - {e}", exc_info=True)
         _status_storage[video_id] = StatusResponse(
             videoId=video_id,
             status=ProcessingStatus.ERROR,
@@ -282,10 +474,10 @@ async def _process_video(video_id: str):
 
 async def get_video_status(video_id: str) -> Optional[StatusResponse]:
     """Get current processing status for a video.
-    
+
     Args:
         video_id: Video identifier
-        
+
     Returns:
         StatusResponse or None if not found
     """
@@ -294,26 +486,26 @@ async def get_video_status(video_id: str) -> Optional[StatusResponse]:
 
 async def get_video_results(video_id: str) -> Optional[AnalysisResult]:
     """Get analysis results for a video.
-    
+
     Args:
         video_id: Video identifier
-        
+
     Returns:
         AnalysisResult or None if not found/not complete
     """
     # Check if it's a sample video
     if video_id in SAMPLE_VIDEOS:
         return _generate_sample_result(video_id)
-    
+
     return _results_storage.get(video_id)
 
 
 def get_video_path(video_id: str) -> Optional[Path]:
     """Get the file path for a video.
-    
+
     Args:
         video_id: Video identifier
-        
+
     Returns:
         Path to video file or None if not found
     """
@@ -322,13 +514,13 @@ def get_video_path(video_id: str) -> Optional[Path]:
         path = Path(video_meta["path"])
         if path.exists():
             return path
-    
+
     # Check for sample videos in the videos directory
     for ext in [".mp4", ".mov", ".webm"]:
         sample_path = VIDEOS_DIR / f"{video_id}{ext}"
         if sample_path.exists():
             return sample_path
-    
+
     return None
 
 
@@ -339,16 +531,16 @@ def get_sample_video_ids() -> list:
 
 async def get_sample_video(sample_id: str) -> Optional[dict]:
     """Get sample video info.
-    
+
     Args:
         sample_id: Sample video identifier
-        
+
     Returns:
         Dict with videoId and status, or None if not found
     """
     if sample_id not in SAMPLE_VIDEOS:
         return None
-    
+
     return {
         "videoId": sample_id,
         "status": "complete",

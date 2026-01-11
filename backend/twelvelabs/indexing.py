@@ -1,9 +1,11 @@
 import os
 from twelvelabs import IndexesCreateRequestModelsItem
-from backend.twelvelabs.twelvelabs_client import client
+from backend.twelvelabs.twelvelabs_client import client, is_available
 
 
 def get_or_create_index(index_name: str = "presentation-analysis"):
+    if not is_available():
+        raise RuntimeError("TwelveLabs client not available. Set TWELVELABS_API_KEY.")
     """Get existing index or create a new one."""
     # Check if index already exists
     print("Checking for existing index...")

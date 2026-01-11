@@ -1,7 +1,9 @@
-from backend.twelvelabs.twelvelabs_client import client
+from backend.twelvelabs.twelvelabs_client import client, is_available
 
 
 def get_video_chapters(video_id: str) -> str:
+    if not is_available():
+        raise RuntimeError("TwelveLabs client not available. Set TWELVELABS_API_KEY.")
     """
     Step 1: Create timestamps/chapters of the video based on different conceptual parts.
     Uses analyze_stream to identify distinct sections of the presentation.
@@ -36,6 +38,8 @@ def analyze_section_alignment(video_id: str, start_time: str, end_time: str, sec
     """
     Step 2: For a specific timeframe, analyze how the speaker's presentation aligns with slides.
     """
+    if not is_available():
+        raise RuntimeError("TwelveLabs client not available. Set TWELVELABS_API_KEY.")
     print(f"\nAnalyzing section: {section_title} ({start_time} - {end_time})...")
 
     alignment_prompt = f"""Focus on the section from {start_time} to {end_time} titled "{section_title}".
@@ -76,6 +80,8 @@ def analyze_full_presentation(video_id: str) -> str:
     """
     Complete analysis: Analyze the entire presentation for speaker-slide alignment.
     """
+    if not is_available():
+        raise RuntimeError("TwelveLabs client not available. Set TWELVELABS_API_KEY.")
     print("\nPerforming full presentation analysis...")
 
     full_prompt = """Analyze this entire presentation video. Focus on:

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import { Upload, FileVideo, X } from 'lucide-react';
+import { FileVideo, Upload, X } from 'lucide-react';
+import { ChangeEvent, DragEvent, useRef, useState } from 'react';
 import { SampleVideos } from './SampleVideos';
 
 interface UploadZoneProps {
@@ -14,20 +14,20 @@ interface UploadZoneProps {
 
 /**
  * UploadZone - Interactive drag-and-drop upload area with file validation
- * 
+ *
  * States:
  * - Default: Empty upload zone with dashed border
  * - Hover: Brightened border
  * - Drag Active: Solid cyan border with "Drop to analyze" text
  * - File Selected: Shows file info with analyze button
- * 
+ *
  * Validation: MP4/MOV, max 500MB, max 3 minutes
  */
 export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading = false, error: externalError }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Combine local and external errors
   const error = externalError || localError;
 
@@ -118,8 +118,8 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading 
           relative w-full max-w-[600px] h-[480px] mx-auto
           bg-white/5 backdrop-blur-md rounded-2xl p-16
           border-2 transition-all duration-300
-          ${isDragging 
-            ? 'border-[#06B6D4] bg-white/10 border-solid' 
+          ${isDragging
+            ? 'border-[#06B6D4] bg-white/10 border-solid'
             : selectedFile
               ? 'border-[#8B5CF6]/50 border-solid'
               : 'border-[#8B5CF6]/50 border-dashed hover:border-[#8B5CF6] hover:bg-white/8 hover:-translate-y-1'
@@ -130,7 +130,7 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading 
       >
         {selectedFile ? (
           // File Selected State
-          <FileSelectedView 
+          <FileSelectedView
             file={selectedFile}
             onRemove={handleRemoveFile}
             onAnalyze={onAnalyze}
@@ -204,13 +204,13 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading 
 /**
  * FileSelectedView - Display selected file info with analyze button
  */
-function FileSelectedView({ 
-  file, 
-  onRemove, 
+function FileSelectedView({
+  file,
+  onRemove,
   onAnalyze,
   isUploading = false,
-}: { 
-  file: File; 
+}: {
+  file: File;
   onRemove: () => void;
   onAnalyze: () => void;
   isUploading?: boolean;

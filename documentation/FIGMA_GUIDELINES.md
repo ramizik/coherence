@@ -761,14 +761,18 @@ export const mockStatusSequence: StatusResponse[] = [
 - [ ] `npm run dev` starts Vite dev server on http://localhost:3000
 - [ ] `npm run build` compiles without TypeScript errors
 - [ ] `npm run typecheck` passes with zero errors
-- [ ] All imports use `@/` path alias correctly
+- [ ] All imports use `@/` path alias correctly (NO relative `../../` paths)
 - [ ] No `figma:asset/` imports (converted to `@/assets/`)
 - [ ] No versioned package imports (or they're aliased in vite.config.ts)
+- [ ] No `<style jsx>` tags (use `<style>` without jsx attribute)
+- [ ] All types imported from `@/types`, not duplicated in other files
 - [ ] All TypeScript types are explicit (no implicit `any`)
 - [ ] All components have JSDoc comments
 - [ ] All backend integration points marked with `// BACKEND_HOOK:`
 - [ ] Mock data matches TypeScript interfaces exactly
+- [ ] Mock data fallback exists for API failures
 - [ ] Desktop layout (1440px) renders correctly
+- [ ] UI design matches original mockups (no accidental regressions)
 
 ---
 
@@ -783,6 +787,181 @@ export const mockStatusSequence: StatusResponse[] = [
 | Server components | `'use client'` directive | Not needed (all client) |
 | Asset imports | `figma:asset/logo.png` | `@/assets/logo.png` |
 | Package imports | `lucide-react@0.487.0` | `lucide-react` |
+| Style tag | `<style jsx>` | `<style>` (no jsx attribute) |
+| Relative imports | `../../lib/mock-data` | `@/lib/mock-data` |
+| Type imports | Import from `mock-data.ts` | Import from `@/types` |
+
+---
+
+## 🔧 Critical Integration Patterns (Lessons Learned)
+
+### 1. Style Tag Syntax (NOT Next.js styled-jsx)
+
+**This is a Vite/React project, NOT Next.js. Do NOT use styled-jsx syntax.**
+
+```tsx
+// ❌ WRONG - Next.js styled-jsx (causes React warning)
+<style jsx>{`
+  .my-class { color: red; }
+`}</style>
+
+// ✅ CORRECT - Standard inline style tag
+<style>{`
+  .my-class { color: red; }
+`}</style>
+```
+
+### 2. Import Path Consistency
+
+**Always use `@/` path aliases. Never use relative paths like `../../`.**
+
+```tsx
+// ❌ WRONG - Relative imports cause type mismatches
+import { formatTimestamp, type DissonanceFlag } from '../../lib/mock-data';
+import { cn } from '../ui/utils';
+
+// ✅ CORRECT - Consistent path aliases
+import { formatTimestamp } from '@/lib/mock-data';
+import type { DissonanceFlag } from '@/types';
+import { cn } from '@/components/ui/utils';
+```
+
+**Why this matters:** When different files import types from different locations, you get duplicate type definitions that don't match, causing subtle bugs.
+
+### 3. Type Definition Location
+
+**All shared types MUST be defined in `@/types/index.ts`, not scattered across files.**
+
+```typescript
+// ❌ WRONG - Types defined in mock-data.ts
+// frontend/lib/mock-data.ts
+export interface DissonanceFlag { ... }
+export interface Metrics { ... }
+
+// ✅ CORRECT - Types in dedicated types folder
+// frontend/types/index.ts
+export interface DissonanceFlag { ... }
+export interface AnalysisMetrics { ... }
+
+// frontend/lib/mock-data.ts
+import type { DissonanceFlag, AnalysisMetrics } from '@/types';
+export const mockData: AnalysisResult = { ... };
+```
+
+### 4. Preserve UI Design During Backend Integration
+
+**When connecting frontend to backend, DO NOT change the visual design.**
+
+Common mistake: Replacing a nicely-styled card layout with a simpler full-screen layout "because it's easier."
+
+```tsx
+// ❌ WRONG - Lost the card container during integration
+<div className="min-h-screen flex items-center justify-center">
+  <Loader2 className="animate-spin" />
+  <p>Loading...</p>
+</div>
+
+// ✅ CORRECT - Preserved the original glassmorphic card design
+<div className="flex items-center justify-center min-h-screen">
+  <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-12">
+    <Loader2 className="animate-spin" />
+    <p>Loading...</p>
+  </div>
+</div>
+```
+
+**Rule:** When integrating backend, only change the data source, not the UI structure.
+
+### 5. Mock Data Fallback Pattern
+
+**Always maintain mock data fallback for demo reliability.**
+
+```tsx
+// ✅ CORRECT - API call with fallback to mock data
+const [result, setResult] = useState<AnalysisResult | null>(null);
+
+useEffect(() => {
+  fetchResults(videoId)
+    .then(setResult)
+    .catch((err) => {
+      console.error('API failed, using mock:', err);
+      setResult(mockAnalysisResult);  // Fallback for demo
+    });
+}, [videoId]);
+```
+
+### 6. Navigation Prop Naming Convention
+
+**Use consistent callback naming across the app:**
+
+| Action | Prop Name | Example |
+|--------|-----------|---------|
+| Navigate to page | `onNavigateTo{Page}` | `onNavigateToResults` |
+| Go back | `onBackTo{Page}` | `onBackToUpload` |
+| Action complete | `on{Action}Complete` | `onProcessingComplete` |
+
+```tsx
+// ✅ Consistent naming
+interface UploadPageProps {
+  onNavigateToResults: (videoId: string) => void;
+}
+
+interface ResultsPageProps {
+  videoId: string;
+  onBackToUpload: () => void;
+}
+```
+
+### 7. API Service Layer Location
+
+**All API calls should go through `@/lib/api.ts` (or `@/lib/services/videoAnalysis.ts`).**
+
+```tsx
+// ❌ WRONG - Direct fetch in component
+const handleSubmit = async () => {
+  const res = await fetch('/api/videos/upload', { ... });
+};
+
+// ✅ CORRECT - Import from centralized API service
+import { uploadVideo, fetchResults, pollStatus } from '@/lib/api';
+
+const handleSubmit = async () => {
+  const result = await uploadVideo(file);
+};
+```
+
+**The API service layer provides:**
+- Centralized error handling with `VideoAnalysisError`
+- Type-safe responses
+- Easy mocking for tests
+- Single place to update API base URL
+
+### 8. Required Type Exports from mock-data.ts
+
+**For components that need mock data AND types, export both from mock-data.ts:**
+
+```typescript
+// frontend/lib/mock-data.ts
+
+// Re-export types that components need
+import type { DissonanceFlag, AnalysisMetrics } from '@/types';
+export type { DissonanceFlag };
+
+// Export utility functions
+export function formatTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Export mock data
+export const mockAnalysisResult: AnalysisResult = { ... };
+```
+
+This allows components to import from one place:
+```tsx
+import { formatTimestamp, mockAnalysisResult, type DissonanceFlag } from '@/lib/mock-data';
+```
 
 ---
 
