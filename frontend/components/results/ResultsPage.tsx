@@ -1,11 +1,13 @@
 import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { fetchResults, VideoAnalysisError } from '../../lib/api';
+import { fetchResults, getVideoStreamUrl, VideoAnalysisError } from '../../lib/api';
 import { mockAnalysisResult, type AnalysisResult } from '../../lib/mock-data';
 import { CoachingCard } from './CoachingCard';
+import { CompactMetrics } from './CompactMetrics';
 import { DissonanceTimeline } from './DissonanceTimeline';
-import { MetricsRow } from './MetricsRow';
+import { GeminiSummaryCard } from './GeminiSummaryCard';
 import { ScoreBadge } from './ScoreBadge';
+import { TranscriptPanel } from './TranscriptPanel';
 import { VideoPlayer } from './VideoPlayer';
 
 interface ResultsPageProps {
@@ -47,6 +49,8 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
         console.log('Fetching results for videoId:', videoId);
         const result = await fetchResults(videoId);
         if (isMounted) {
+          // Update video URL to use streaming endpoint
+          result.videoUrl = getVideoStreamUrl(videoId);
           setAnalysisResult(result);
           console.log('Results loaded:', result);
         }
@@ -58,7 +62,8 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
           } else {
             setError('Failed to load analysis results. Please try again.');
           }
-          // Fall back to mock data for demo
+          // Fall back to mock data for demo reliability
+          console.log('Using mock data as fallback');
           setAnalysisResult(mockAnalysisResult);
         }
       } finally {
@@ -78,10 +83,15 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
   const handleRetry = () => {
     setError(null);
     setIsLoading(true);
-    // Re-trigger the effect by setting a new error state
     fetchResults(videoId)
-      .then(setAnalysisResult)
-      .catch((err) => setError(err.message))
+      .then((result) => {
+        result.videoUrl = getVideoStreamUrl(videoId);
+        setAnalysisResult(result);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setAnalysisResult(mockAnalysisResult);
+      })
       .finally(() => setIsLoading(false));
   };
 
@@ -163,7 +173,7 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
         )}
 
         {/* Error banner if using fallback data */}
-        {error && analysisResult && (
+        {error && result && (
           <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
             <p className="text-amber-200 text-sm">
@@ -174,30 +184,43 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
 
         {/* Header with Score and Video Info */}
         <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.08] rounded-2xl p-8 mb-8">
-          <div className="flex items-center gap-8">
+          <div className="flex items-start justify-between gap-8 mb-6">
 
-            {/* Score Badge */}
-            <div className="flex-shrink-0">
-              <ScoreBadge score={result.coherenceScore} size="lg" />
-            </div>
+            {/* Left: Score Badge + Video Info */}
+            <div className="flex items-center gap-8 flex-1 min-w-0">
+              {/* Score Badge */}
+              <div className="flex-shrink-0">
+                <ScoreBadge score={result.coherenceScore} size="lg" />
+              </div>
 
-            {/* Video Info */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-[20px] font-bold text-white mb-3 truncate">
-                {result.videoTitle}
-              </h1>
-              <div className="flex items-center gap-4 text-[13px] text-gray-400">
-                <span>Analyzed {result.uploadDate}</span>
-                <span>•</span>
-                <span>Duration: {Math.floor(result.duration / 60)}:{(result.duration % 60).toString().padStart(2, '0')}</span>
+              {/* Video Info */}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-[20px] font-bold text-white mb-3 truncate">
+                  {result.videoTitle}
+                </h1>
+                <div className="flex items-center gap-4 text-[13px] text-gray-400">
+                  <span>Analyzed {result.uploadDate}</span>
+                  <span>•</span>
+                  <span>Duration: {Math.floor(result.duration / 60)}:{(result.duration % 60).toString().padStart(2, '0')}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Metrics Grid - Full Width */}
-        <div className="mb-8">
-          <MetricsRow metrics={result.metrics} />
+            {/* Right: Gemini AI Summary Card */}
+            {result.geminiReport && (
+              <div className="flex-shrink-0">
+                <GeminiSummaryCard
+                  coachingAdvice={result.geminiReport.coachingAdvice}
+                  headline={result.geminiReport.headline}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Compact Metrics Bar */}
+          <div className="pt-6 border-t border-white/[0.08]">
+            <CompactMetrics metrics={result.metrics} />
+          </div>
         </div>
 
         {/* Main Content Grid */}
@@ -219,6 +242,24 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
               currentTime={currentTime}
               onSeek={handleSeek}
             />
+
+            {/* Transcript Panel - convert transcript segments to word-level format */}
+            {result.transcript && result.transcript.length > 0 && (
+              <TranscriptPanel
+                transcript={result.transcript.flatMap(seg =>
+                  seg.text.split(' ').map((word, idx) => ({
+                    text: word,
+                    startTime: seg.timestamp + (idx * 0.3),
+                    endTime: seg.timestamp + ((idx + 1) * 0.3),
+                    isFiller: ['um', 'uh', 'like', 'you know'].some(f =>
+                      word.toLowerCase().includes(f)
+                    ),
+                  }))
+                )}
+                currentTime={currentTime}
+                onWordClick={handleSeek}
+              />
+            )}
           </div>
 
           {/* RIGHT: Coaching Cards */}

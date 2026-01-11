@@ -6,7 +6,8 @@ import { HeroContent } from './HeroContent';
 import { UploadZone } from './UploadZone';
 import { ProcessingView } from './ProcessingView';
 import { ProblemStatement } from '../landing/ProblemStatement';
-import logoImage from 'figma:asset/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png';
+import { PipelineSection } from '../landing/PipelineSection';
+import logoImage from '../../assets/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png';
 import { uploadVideo, VideoAnalysisError } from '../../lib/api';
 
 interface UploadPageProps {
@@ -123,6 +124,9 @@ export function UploadPage({ onNavigateToResults }: UploadPageProps) {
           </div>
         )}
       </div>
+
+      {/* Pipeline Section - Shows the AI processing flow */}
+      {!isProcessing && <PipelineSection />}
 
       {/* Problem Statement Section - Only show when not processing */}
       {!isProcessing && <ProblemStatement />}

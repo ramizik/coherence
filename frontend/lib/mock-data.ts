@@ -1,9 +1,9 @@
 /**
  * Mock Data for Coherence Analysis Results
- * 
+ *
  * This file contains comprehensive mock data representing a full presentation analysis.
  * In production, this data would come from the FastAPI backend after video processing.
- * 
+ *
  * BACKEND_HOOK: Replace with actual API calls
  * GET /api/videos/{videoId}/results
  */
@@ -18,6 +18,8 @@ export interface DissonanceFlag {
   coaching: string; // Actionable advice
   confidence?: number; // AI confidence (0-100)
   duration?: number; // How long the issue lasted (seconds)
+  visualEvidence?: string; // What TwelveLabs detected
+  verbalEvidence?: string; // What Deepgram transcribed
 }
 
 export interface Metrics {
@@ -32,6 +34,9 @@ export interface Metrics {
   fidgetingTrend: number; // +/- count change
 }
 
+// Import Gemini types from API types
+import type { GeminiReport } from '../types/api';
+
 export interface AnalysisResult {
   videoId: string;
   videoTitle: string;
@@ -45,7 +50,11 @@ export interface AnalysisResult {
   transcript: TranscriptSegment[];
   videoUrl: string;
   thumbnailUrl?: string;
+  // Gemini comprehensive coaching report (separate tab in frontend)
+  geminiReport?: GeminiReport;
 }
+
+export type { GeminiReport };
 
 export interface TranscriptSegment {
   id: string;
@@ -67,7 +76,7 @@ export const mockAnalysisResult: AnalysisResult = {
   fileSize: '45 MB',
   resolution: '1080p',
   coherenceScore: 67,
-  
+
   metrics: {
     eyeContact: 85,
     fillerWords: 8,
@@ -78,7 +87,7 @@ export const mockAnalysisResult: AnalysisResult = {
     speakingPaceTrend: 8, // +8 WPM
     fidgetingTrend: -2, // -2 fidgets (improvement)
   },
-  
+
   dissonanceFlags: [
     {
       id: 'flag-1',
@@ -144,7 +153,7 @@ export const mockAnalysisResult: AnalysisResult = {
       duration: 15,
     },
   ],
-  
+
   transcript: [
     {
       id: 'seg-1',
@@ -230,7 +239,7 @@ export const mockAnalysisResult: AnalysisResult = {
       highlight: null,
     },
   ],
-  
+
   videoUrl: MOCK_VIDEO_URL,
   thumbnailUrl: '/mock-thumbnails/presentation-frame.jpg',
 };

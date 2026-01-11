@@ -1,10 +1,10 @@
 'use client';
 
-import { CheckCircle } from 'lucide-react';
+// Hero content component
 
 /**
  * HeroContent - Left column content with branding, headline, and features
- * 
+ *
  * Displays:
  * - Main headline with gradient text
  * - Subheadline
@@ -17,7 +17,7 @@ export function HeroContent() {
       {/* Hero Content - Vertically Centered */}
       <div className="max-w-2xl space-y-12">
         {/* Main Headline */}
-        <h2 
+        <h2
           className="text-[56px] font-black text-white leading-[1.1] tracking-tight"
           style={{ fontWeight: 900 }}
         >
@@ -38,7 +38,7 @@ export function HeroContent() {
 
         {/* Trust Indicator */}
         <div className="flex items-center gap-2 text-[14px] text-[#6B7280]">
-          
+
         </div>
       </div>
     </div>

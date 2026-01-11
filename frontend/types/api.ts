@@ -57,24 +57,12 @@ export interface ApiTranscriptSegment {
 // Gemini Report Types
 // ========================
 
-export interface GeminiInsight {
-  category: 'strength' | 'improvement' | 'observation';
-  title: string;
-  description: string;
-  timestamp?: number;
-  priority: number; // 0-10
-}
-
 export interface GeminiReport {
-  summary: string;
-  overallAssessment: string;
-  keyStrengths: GeminiInsight[];
-  areasForImprovement: GeminiInsight[];
-  immediateActions: string[];
-  practiceExercises: string[];
-  speechAnalysis?: string;
-  bodyLanguageAnalysis?: string;
-  contentCoherenceAnalysis?: string;
+  // Main coaching advice - natural, conversational tone
+  coachingAdvice: string;
+  // Short headline for the card
+  headline?: string;
+  // Metadata
   generatedAt?: string;
   modelUsed?: string;
 }

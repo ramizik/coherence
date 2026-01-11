@@ -31,7 +31,7 @@ from typing import List, Optional, Set
 
 from deepgram import DeepgramClient
 
-from backend.deepgram.deepgram_client import client
+from backend.deepgram.deepgram_client import client, is_available
 from backend.gemini.gemini_client import client as gemini_client, is_available as gemini_available
 
 logger = logging.getLogger(__name__)

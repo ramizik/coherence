@@ -40,19 +40,19 @@ const stats: Stat[] = [
 export function ProblemStatement() {
   return (
     <section 
-      className="relative w-full bg-gradient-to-b from-[#0F172A] to-[#1E293B]"
+      className="relative w-full bg-gradient-to-b from-[#0F172A] to-[#1E293B] m-[0px]"
       aria-label="Problem statement section with statistics"
     >
       {/* Top separator line */}
       
 
       {/* Main container */}
-      <div className="max-w-7xl mx-auto px-20 py-[120px]">
+      <div className="max-w-7xl mx-auto px-[80px] py-[0px]">
         {/* Section Header */}
         <div className="text-center mb-16">
           {/* Eyebrow text */}
           <p 
-            className="text-[12px] font-medium text-[#06B6D4] uppercase tracking-widest mb-4"
+            className="text-[12px] font-medium text-[#06B6D4] uppercase tracking-widest mb-4 pt-[30px]"
             style={{ fontWeight: 500 }}
           >
             THE CHALLENGE
@@ -68,7 +68,7 @@ export function ProblemStatement() {
         </div>
 
         {/* Three-column stat cards */}
-        <div className="flex justify-between gap-8">
+        <div className="flex justify-between gap-8 pb-[30px]">
           {stats.map((stat, index) => (
             <StatCard 
               key={stat.label}

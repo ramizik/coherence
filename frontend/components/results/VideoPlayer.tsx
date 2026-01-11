@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
-import { Play, Pause, Volume2, Maximize, SkipBack, SkipForward } from 'lucide-react';
+import { Maximize, Pause, Play, SkipBack, SkipForward, Volume2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { formatTimestamp } from '../../lib/mock-data';
 
 interface VideoPlayerProps {
@@ -22,12 +22,12 @@ interface VideoPlayerProps {
  *
  * BACKEND_HOOK: Video streaming
  * ─────────────────────────────────────────
- * Endpoint: GET /videos/{videoId}.mp4
+ * Endpoint: GET /api/videos/{videoId}/stream
  * Request:  None (videoId in URL path)
  * Response: Video file stream
  * Success:  Browser handles video playback
  * Error:    Show error message with retry
- * Status:   NOT_CONNECTED
+ * Status:   CONNECTED ✅
  * ─────────────────────────────────────────
  */
 export function VideoPlayer({
@@ -78,7 +78,7 @@ export function VideoPlayer({
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
     const time = percent * duration;
-    
+
     if (videoRef.current) {
       videoRef.current.currentTime = time;
       setLocalTime(time);

@@ -1,7 +1,7 @@
 'use client';
 
 import { LucideIcon } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -13,7 +13,7 @@ interface StatCardProps {
 
 /**
  * StatCard - Minimalist information card displaying a statistic
- * 
+ *
  * Features:
  * - Glassmorphic background with subtle hover effect
  * - Icon with purple accent
@@ -59,7 +59,6 @@ export function StatCard({ icon: Icon, number, label, description, delay }: Stat
 
     const duration = 1200; // ms
     const steps = 60;
-    const increment = targetNumber / steps;
     let currentStep = 0;
 
     const timer = setInterval(() => {
@@ -91,8 +90,8 @@ export function StatCard({ icon: Icon, number, label, description, delay }: Stat
       {/* Icon */}
       <div className="flex justify-center mb-8">
         <div className="transition-transform duration-300 group-hover:scale-110">
-          <Icon 
-            className="w-14 h-14 text-[#A78BFA]" 
+          <Icon
+            className="w-14 h-14 text-[#A78BFA]"
             strokeWidth={1.5}
             style={{
               filter: 'drop-shadow(0 0 8px rgba(167, 139, 250, 0.3))'
@@ -103,9 +102,9 @@ export function StatCard({ icon: Icon, number, label, description, delay }: Stat
 
       {/* Statistic Number with Gradient */}
       <div className="mb-4">
-        <p 
+        <p
           className="text-[72px] font-black leading-none text-center bg-gradient-to-br from-[#A78BFA] via-[#C4B5FD] to-[#22D3EE] bg-clip-text text-transparent"
-          style={{ 
+          style={{
             fontWeight: 900,
             textShadow: '0 10px 20px rgba(167, 139, 250, 0.2)'
           }}
@@ -115,7 +114,7 @@ export function StatCard({ icon: Icon, number, label, description, delay }: Stat
       </div>
 
       {/* Label */}
-      <p 
+      <p
         className="text-[18px] font-semibold text-white text-center leading-[1.4] mb-3"
         style={{ fontWeight: 600 }}
       >

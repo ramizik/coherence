@@ -17,6 +17,7 @@ from backend.app.models.schemas import (
     AnalysisMetrics,
     DissonanceFlag,
     TimelinePoint,
+    TranscriptSegment,
     StatusResponse,
     UploadResponse,
     ProcessingStatus,
@@ -60,6 +61,17 @@ except Exception as e:
     logging.warning(f"Deepgram service import failed: {e}")
     DEEPGRAM_IMPORTED = False
     deepgram_service = None
+
+# Import Gemini service (may fail if dependencies missing)
+try:
+    from backend.app.services import gemini_service
+    from backend.app.services.gemini_service import is_gemini_available
+    GEMINI_IMPORTED = True
+except Exception as e:
+    logging.warning(f"Gemini service import failed: {e}")
+    GEMINI_IMPORTED = False
+    gemini_service = None
+    is_gemini_available = lambda: False
 
 logger = logging.getLogger(__name__)
 
@@ -400,6 +412,47 @@ def _convert_analysis_to_result(
     if not priorities:
         priorities = ["Review flagged moments", "Practice with feedback", "Re-record for comparison"]
 
+    # Extract transcript segments from Deepgram data
+    transcript_segments: List[TranscriptSegment] = []
+    if deepgram_data:
+        words = deepgram_data.get("words", [])
+        if words:
+            # Group words into segments (roughly by sentence or time chunks)
+            current_segment_words = []
+            segment_start = 0.0
+
+            for word_data in words:
+                word = word_data.get("word", "")
+                start = float(word_data.get("start", 0))
+                end = float(word_data.get("end", 0))
+                confidence = word_data.get("confidence", 0.9)
+
+                if not current_segment_words:
+                    segment_start = start
+
+                current_segment_words.append(word)
+
+                # Create a new segment every ~10 words or at sentence boundaries
+                is_sentence_end = word.endswith(('.', '!', '?'))
+                if len(current_segment_words) >= 10 or is_sentence_end:
+                    transcript_segments.append(TranscriptSegment(
+                        text=" ".join(current_segment_words),
+                        start=segment_start,
+                        end=end,
+                        confidence=confidence,
+                    ))
+                    current_segment_words = []
+
+            # Add remaining words as final segment
+            if current_segment_words:
+                last_word = words[-1] if words else {}
+                transcript_segments.append(TranscriptSegment(
+                    text=" ".join(current_segment_words),
+                    start=segment_start,
+                    end=float(last_word.get("end", segment_start + 1)),
+                    confidence=last_word.get("confidence", 0.9),
+                ))
+
     return AnalysisResult(
         videoId=video_id,
         videoUrl=f"/api/videos/{video_id}/stream",
@@ -411,6 +464,7 @@ def _convert_analysis_to_result(
         timelineHeatmap=timeline_points,
         strengths=strengths[:4],  # Max 4 strengths
         priorities=priorities[:3],  # Top 3 priorities
+        transcript=transcript_segments if transcript_segments else None,
     )
 
 
@@ -482,6 +536,46 @@ def _convert_deepgram_only_result(
     pace_score = 15 if 140 <= metrics.speakingPace <= 160 else (10 if 120 <= metrics.speakingPace <= 180 else 5)
     coherence_score = max(30, 70 - filler_penalty + pace_score)
 
+    # Extract transcript segments from Deepgram data
+    transcript_segments: List[TranscriptSegment] = []
+    if deepgram_data:
+        words = deepgram_data.get("words", [])
+        if words:
+            current_segment_words = []
+            segment_start = 0.0
+
+            for word_data in words:
+                word = word_data.get("word", "")
+                start = float(word_data.get("start", 0))
+                end = float(word_data.get("end", 0))
+                confidence = word_data.get("confidence", 0.9)
+
+                if not current_segment_words:
+                    segment_start = start
+
+                current_segment_words.append(word)
+
+                # Create a new segment every ~10 words or at sentence boundaries
+                is_sentence_end = word.endswith(('.', '!', '?'))
+                if len(current_segment_words) >= 10 or is_sentence_end:
+                    transcript_segments.append(TranscriptSegment(
+                        text=" ".join(current_segment_words),
+                        start=segment_start,
+                        end=end,
+                        confidence=confidence,
+                    ))
+                    current_segment_words = []
+
+            # Add remaining words as final segment
+            if current_segment_words:
+                last_word = words[-1] if words else {}
+                transcript_segments.append(TranscriptSegment(
+                    text=" ".join(current_segment_words),
+                    start=segment_start,
+                    end=float(last_word.get("end", segment_start + 1)),
+                    confidence=last_word.get("confidence", 0.9),
+                ))
+
     return AnalysisResult(
         videoId=video_id,
         videoUrl=f"/api/videos/{video_id}/stream",
@@ -500,6 +594,7 @@ def _convert_deepgram_only_result(
             "Consider re-running with TwelveLabs for full analysis",
             f"Reduce filler words (currently {metrics.fillerWords})" if metrics.fillerWords > 5 else "Good filler word control",
         ],
+        transcript=transcript_segments if transcript_segments else None,
     )
 
 
@@ -673,7 +768,7 @@ async def _process_video(video_id: str):
             # Merge results
             if twelvelabs_result:
                 # Use TwelveLabs as base, enhance with Deepgram data
-                _update_status(video_id, 85, "Generating insights...", 10)
+                _update_status(video_id, 80, "Generating insights...", 15)
                 result = _convert_analysis_to_result(
                     video_id=video_id,
                     video_path=video_path,
@@ -682,7 +777,7 @@ async def _process_video(video_id: str):
                 )
             elif deepgram_result:
                 # Only Deepgram available - generate basic result
-                _update_status(video_id, 85, "Generating insights from speech...", 10)
+                _update_status(video_id, 80, "Generating insights from speech...", 15)
                 result = _convert_deepgram_only_result(
                     video_id=video_id,
                     video_path=video_path,
@@ -693,6 +788,46 @@ async def _process_video(video_id: str):
                 logger.warning(f"Both analyses failed, using mock for: {video_id}")
                 duration = video_meta.get("duration", 120.0)
                 result = _generate_mock_result(video_id, duration)
+
+            # ========== GEMINI COMPREHENSIVE ANALYSIS ==========
+            # Run Gemini to generate comprehensive coaching report
+            gemini_available = GEMINI_IMPORTED and is_gemini_available()
+
+            if gemini_available and (deepgram_result or twelvelabs_result):
+                _update_status(video_id, 90, "Generating comprehensive coaching report...", 8)
+                try:
+                    gemini_report = await gemini_service.generate_coaching_report(
+                        deepgram_data=deepgram_result,
+                        twelvelabs_data=twelvelabs_result,
+                        video_duration=video_meta.get("duration", 0),
+                    )
+                    if gemini_report:
+                        result.geminiReport = gemini_report
+                        logger.info(f"Gemini coaching report added for video: {video_id}")
+
+                        # Also cache the Gemini result
+                        gemini_report_dict = gemini_report.model_dump()
+                        _analysis_cache[video_id]["gemini_report"] = gemini_report_dict
+
+                        # ========== LOG GEMINI COACHING REPORT ==========
+                        logger.info("=" * 70)
+                        logger.info("GEMINI COACHING REPORT")
+                        logger.info("=" * 70)
+                        logger.info(f"Headline: {gemini_report.headline}")
+                        logger.info("-" * 70)
+                        logger.info("Coaching Advice:")
+                        logger.info(gemini_report.coachingAdvice)
+                        logger.info("-" * 70)
+                        logger.info(f"Generated At: {gemini_report.generatedAt}")
+                        logger.info(f"Model Used: {gemini_report.modelUsed}")
+                        logger.info("=" * 70)
+
+                except Exception as e:
+                    logger.warning(f"Gemini report generation failed: {e}")
+                    # Continue without Gemini report - not critical
+            else:
+                if not gemini_available:
+                    logger.info(f"Gemini not available, skipping coaching report for: {video_id}")
 
         # Stage 5: Complete
         _results_storage[video_id] = result

@@ -9,8 +9,8 @@ twelvelabs>=1.0.0
 # Deepgram SDK (speech-to-text)
 deepgram-sdk>=5.0.0
 
-# Anthropic SDK (for LLM-based filler detection)
-anthropic>=0.40.0
+# Google Gemini SDK (for multimodal synthesis and filler detection)
+google-generativeai>=0.8.0
 
 # Environment variables
 python-dotenv>=1.0.0

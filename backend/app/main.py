@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Load environment variables from .env file in repository root
 env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
+print(f"[main.py] Loading .env from: {env_path.resolve()}")
+print(f"[main.py] .env exists: {env_path.exists()}")
+load_dotenv(env_path, override=True)
 
 # Configure logging to show all application logs
 logging.basicConfig(
@@ -25,6 +27,7 @@ logging.getLogger("backend").setLevel(logging.INFO)
 logging.getLogger("backend.app.services").setLevel(logging.INFO)
 logging.getLogger("backend.deepgram").setLevel(logging.INFO)
 logging.getLogger("backend.twelvelabs").setLevel(logging.INFO)
+logging.getLogger("backend.gemini").setLevel(logging.INFO)
 
 # Reduce noise from third-party libraries
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -93,6 +96,16 @@ async def startup_event():
             logger.warning("✗ Deepgram: NOT AVAILABLE (check DEEPGRAM_API_KEY)")
     except Exception as e:
         logger.warning(f"✗ Deepgram: IMPORT FAILED ({e})")
+
+    # Check Gemini availability
+    try:
+        from backend.gemini.gemini_client import is_available as gm_available
+        if gm_available():
+            logger.info("✓ Gemini: AVAILABLE")
+        else:
+            logger.warning("✗ Gemini: NOT AVAILABLE (check GEMINI_API_KEY)")
+    except Exception as e:
+        logger.warning(f"✗ Gemini: IMPORT FAILED ({e})")
 
     logger.info("=" * 60)
     logger.info("API ready at http://localhost:8000")

@@ -419,6 +419,20 @@ async def synthesize_analysis(
 
         result = json.loads(response_text)
 
+        # Log raw Gemini response for observation
+        logger.info("=" * 60)
+        logger.info("GEMINI API RAW RESPONSE (parsed JSON)")
+        logger.info("=" * 60)
+        logger.info(f"Dissonance flags count: {len(result.get('dissonance_flags', []))}")
+        for i, flag in enumerate(result.get('dissonance_flags', []), 1):
+            logger.info(f"  {i}. [{flag.get('severity', 'N/A')}] {flag.get('type', 'N/A')}")
+            logger.info(f"     Time: {flag.get('timestamp', 'N/A')}s")
+            logger.info(f"     Desc: {flag.get('description', 'N/A')[:80]}...")
+            logger.info(f"     Tip: {flag.get('coaching_tip', 'N/A')[:80]}...")
+        logger.info(f"Strengths: {result.get('strengths', [])}")
+        logger.info(f"Top 3 Priorities: {result.get('top_3_priorities', [])}")
+        logger.info("=" * 60)
+
         # Parse dissonance flags
         dissonance_flags = []
         for flag_data in result.get("dissonance_flags", []):

@@ -1,190 +1,229 @@
-"""Gemini AI service for comprehensive presentation analysis.
+"""Gemini service wrapper for video processing pipeline.
 
-Synthesizes data from TwelveLabs (visual) and Deepgram (speech) to generate
-a unified coaching report. This is SEPARATE from TwelveLabs analysis.
+This module wraps the backend.gemini module to provide async service functions
+for the video processing pipeline. It generates natural, conversational coaching
+advice that reads like a human presentation coach giving feedback.
 
 Data Flow:
     TwelveLabs (video analysis) ─┐
-                                 ├──► Gemini ──► GeminiReport
+                                 ├──► Gemini ──► GeminiReport (natural language)
     Deepgram (transcription) ────┘
-
-The GeminiReport provides:
-- Executive summary
-- Synthesized insights from both visual and verbal analysis
-- Actionable coaching recommendations
-- Practice exercises
 """
 import asyncio
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from backend.app.models.schemas import GeminiReport
 
 logger = logging.getLogger(__name__)
 
+# Import the actual Gemini module
+try:
+    from backend.gemini import (
+        is_available,
+        synthesize_analysis,
+        SynthesisResult,
+    )
+    from backend.gemini.gemini_client import client as gemini_client
+    GEMINI_IMPORTED = True
+except ImportError as e:
+    logger.warning(f"Failed to import Gemini module: {e}")
+    GEMINI_IMPORTED = False
+    is_available = lambda: False
+    synthesize_analysis = None
+    SynthesisResult = None
+    gemini_client = None
 
-def _is_gemini_available() -> bool:
+
+def is_gemini_available() -> bool:
     """Check if Gemini API is available."""
-    import os
-    api_key = os.getenv("GEMINI_API_KEY")
-    return api_key is not None and len(api_key) > 0
+    if not GEMINI_IMPORTED:
+        return False
+    return is_available()
 
 
-def prepare_gemini_context(
-    deepgram_data: Optional[Dict[str, Any]],
-    twelvelabs_data: Optional[Dict[str, Any]],
-    video_duration: float = 0,
-) -> Dict[str, Any]:
-    """Prepare context data for Gemini prompt.
+def _build_coaching_prompt(
+    synthesis_result: "SynthesisResult",
+    deepgram_data: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Build prompt for natural language coaching advice."""
 
-    Structures the raw data from Deepgram and TwelveLabs into a clean
-    format that Gemini can easily understand and analyze.
+    result_dict = synthesis_result.to_dict()
+    score = result_dict.get('overall_coherence_score', 0)
+    strengths = result_dict.get('strengths', [])
+    priorities = result_dict.get('top_3_priorities', [])
+    metrics = result_dict.get('metrics', {})
+    flags = result_dict.get('dissonance_flags', [])
 
-    Args:
-        deepgram_data: Raw transcription result from Deepgram
-        twelvelabs_data: Raw analysis result from TwelveLabs
-        video_duration: Video duration in seconds
+    # Get speech metrics
+    filler_count = metrics.get('fillerWords', 0)
+    speaking_pace = metrics.get('speakingPace', 150)
+    eye_contact = metrics.get('eyeContact', 70)
+    fidgeting = metrics.get('fidgeting', 0)
 
-    Returns:
-        Structured context dict for Gemini prompt
-    """
-    context = {
-        "video_duration_seconds": video_duration,
-        "has_speech_data": deepgram_data is not None,
-        "has_visual_data": twelvelabs_data is not None,
-    }
+    # Build context about detected issues
+    issues_context = []
+    for flag in flags[:3]:  # Top 3 issues
+        issues_context.append(
+            f"- At {flag.get('timestamp', 0):.0f}s: {flag.get('description', '')}"
+        )
 
-    # Extract speech data from Deepgram
-    if deepgram_data:
-        metrics = deepgram_data.get("metrics", {})
-        filler_analysis = metrics.get("filler_analysis", {})
+    prompt = f"""You are a friendly, supportive presentation coach giving feedback to someone who just practiced their presentation. Write natural, conversational advice as if you're talking directly to them.
 
-        context["speech"] = {
-            "transcript": deepgram_data.get("transcript", ""),
-            "confidence": deepgram_data.get("confidence", 0),
-            "total_words": metrics.get("total_words", 0),
-            "content_words": metrics.get("content_words", 0),
-            "speaking_pace_wpm": metrics.get("speaking_pace_wpm", 0),
-            "filler_words": {
-                "total_count": filler_analysis.get("total_count", 0),
-                "vocal_disfluencies": filler_analysis.get("vocal_disfluency_count", 0),
-                "contextual_fillers": filler_analysis.get("contextual_filler_count", 0),
-                "rate_per_minute": filler_analysis.get("filler_rate_per_minute", 0),
-                "instances": filler_analysis.get("filler_words", [])[:10],  # Limit for prompt
-            },
-            "pauses": {
-                "count": metrics.get("pause_count", 0),
-                "instances": metrics.get("pauses", [])[:5],  # Limit for prompt
-            },
-        }
-    else:
-        context["speech"] = None
+ANALYSIS DATA:
+- Coherence Score: {score}/100
+- Eye Contact: {eye_contact}%
+- Filler Words: {filler_count}
+- Speaking Pace: {speaking_pace} WPM (optimal: 140-160)
+- Fidgeting Instances: {fidgeting}
 
-    # Extract visual data from TwelveLabs
-    if twelvelabs_data:
-        tl_metrics = twelvelabs_data.get("metrics", {})
+STRENGTHS DETECTED:
+{chr(10).join(f"- {s}" for s in strengths) if strengths else "- Good effort overall"}
 
-        context["visual"] = {
-            "eye_contact_percentage": tl_metrics.get("eye_contact_percentage", 0),
-            "fidgeting_count": tl_metrics.get("fidgeting_count", 0),
-            "gesture_count": tl_metrics.get("gesture_count", 0),
-            "dissonance_flags": twelvelabs_data.get("dissonance_flags", []),
-            "strengths_detected": twelvelabs_data.get("strengths", []),
-            "priorities_detected": twelvelabs_data.get("priorities", []),
-            "overall_assessment": twelvelabs_data.get("overall_assessment", ""),
-        }
-    else:
-        context["visual"] = None
+AREAS TO IMPROVE:
+{chr(10).join(f"- {p}" for p in priorities) if priorities else "- Keep practicing"}
 
-    return context
+SPECIFIC MOMENTS TO ADDRESS:
+{chr(10).join(issues_context) if issues_context else "- No major issues detected"}
 
-
-def build_gemini_prompt(context: Dict[str, Any]) -> str:
-    """Build the system prompt for Gemini analysis.
-
-    Args:
-        context: Prepared context from prepare_gemini_context()
-
-    Returns:
-        Complete prompt string for Gemini
-    """
-    prompt_parts = [
-        "You are an expert presentation coach analyzing a recorded presentation.",
-        "You have been provided with two types of analysis data:",
-        "",
-        "1. SPEECH ANALYSIS (from Deepgram transcription):",
-        "   - Full transcript of what was said",
-        "   - Speaking pace (words per minute)",
-        "   - Filler word detection (um, uh, like, you know)",
-        "   - Pause patterns",
-        "",
-        "2. VISUAL ANALYSIS (from TwelveLabs video understanding):",
-        "   - Eye contact percentage",
-        "   - Fidgeting/nervous movements",
-        "   - Gesture usage",
-        "   - Visual-verbal dissonance (mismatches between words and body language)",
-        "",
-        "Your task is to synthesize BOTH sources and provide a comprehensive coaching report.",
-        "Focus on actionable, specific feedback that will help the presenter improve.",
-        "",
-        "=" * 60,
-        "ANALYSIS DATA:",
-        "=" * 60,
-        "",
-        json.dumps(context, indent=2, default=str),
-        "",
-        "=" * 60,
-        "REQUIRED OUTPUT FORMAT (JSON):",
-        "=" * 60,
-        "",
-        """Return a JSON object with this exact structure:
-{
-    "summary": "2-3 sentence executive summary",
-    "overallAssessment": "Detailed paragraph assessment of the presentation",
-    "keyStrengths": [
-        {"category": "strength", "title": "Short title", "description": "Details", "priority": 8}
-    ],
-    "areasForImprovement": [
-        {"category": "improvement", "title": "Short title", "description": "Details", "priority": 9}
-    ],
-    "immediateActions": ["Action 1", "Action 2"],
-    "practiceExercises": ["Exercise 1", "Exercise 2"],
-    "speechAnalysis": "Paragraph about speech patterns, pace, filler words",
-    "bodyLanguageAnalysis": "Paragraph about gestures, eye contact, posture",
-    "contentCoherenceAnalysis": "Paragraph about how well speech matched visuals"
-}
+INSTRUCTIONS:
+Write 4-6 sentences of coaching advice that:
+1. Starts with something positive they did well
+2. Naturally transitions to 1-2 key areas to improve
+3. Gives specific, actionable tips they can use immediately
+4. Ends with encouragement
 
 IMPORTANT:
-- Be specific and actionable in your feedback
-- Reference specific timestamps or examples when possible
-- Prioritize the most impactful improvements
-- Keep the tone encouraging but honest
-- Focus on 3-5 key strengths and 3-5 key improvements
-- Return ONLY valid JSON, no markdown or extra text""",
-    ]
+- Write in second person ("you did great", "try to...")
+- Be warm and encouraging, not critical
+- Sound like a real coach talking, not a formal report
+- Don't use bullet points or headers - just flowing sentences
+- Keep it concise - this will be displayed in a small card
 
-    return "\n".join(prompt_parts)
+Write ONLY the coaching advice, nothing else:"""
+
+    return prompt
 
 
-async def generate_report(
+async def _generate_natural_coaching(
+    synthesis_result: "SynthesisResult",
+    deepgram_data: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Generate natural language coaching advice using Gemini."""
+
+    if not gemini_client:
+        return _generate_fallback_coaching(synthesis_result, deepgram_data)
+
+    prompt = _build_coaching_prompt(synthesis_result, deepgram_data)
+
+    try:
+        response = await asyncio.to_thread(
+            gemini_client.generate_content,
+            prompt,
+            generation_config={
+                "temperature": 0.7,  # Slightly higher for more natural language
+                "max_output_tokens": 300,  # Keep it concise
+            },
+        )
+
+        coaching_text = response.text.strip()
+
+        # Clean up any markdown or extra formatting
+        coaching_text = coaching_text.replace("**", "").replace("*", "")
+        coaching_text = coaching_text.replace("###", "").replace("##", "").replace("#", "")
+
+        logger.info(f"Generated natural coaching advice ({len(coaching_text)} chars)")
+        return coaching_text
+
+    except Exception as e:
+        logger.warning(f"Failed to generate coaching with Gemini: {e}")
+        return _generate_fallback_coaching(synthesis_result, deepgram_data)
+
+
+def _generate_fallback_coaching(
+    synthesis_result: "SynthesisResult",
+    deepgram_data: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Generate fallback coaching advice when Gemini is unavailable."""
+
+    result_dict = synthesis_result.to_dict()
+    score = result_dict.get('overall_coherence_score', 0)
+    strengths = result_dict.get('strengths', [])
+    priorities = result_dict.get('top_3_priorities', [])
+    metrics = result_dict.get('metrics', {})
+
+    # Build natural-sounding fallback
+    parts = []
+
+    # Positive opening
+    if strengths:
+        parts.append(f"Great job on your presentation! Your {strengths[0].lower()} really stood out.")
+    else:
+        parts.append("Nice work on your presentation practice!")
+
+    # Score context
+    if score >= 80:
+        parts.append("You're doing really well overall.")
+    elif score >= 60:
+        parts.append("You're on the right track with some room to polish.")
+    else:
+        parts.append("There are a few areas we can work on together.")
+
+    # Key improvement
+    if priorities:
+        parts.append(f"The main thing I'd focus on is: {priorities[0].lower()}.")
+
+    # Specific tip based on metrics
+    filler_count = metrics.get('fillerWords', 0)
+    speaking_pace = metrics.get('speakingPace', 150)
+
+    if filler_count > 10:
+        parts.append("Try pausing instead of using filler words - a brief silence is more powerful than 'um' or 'uh'.")
+    elif speaking_pace > 170:
+        parts.append("You might want to slow down a bit to let your key points land with the audience.")
+    elif speaking_pace < 130:
+        parts.append("Try picking up the pace slightly to keep your audience engaged.")
+
+    # Encouraging close
+    parts.append("Keep practicing and you'll see great improvement!")
+
+    return " ".join(parts)
+
+
+def _generate_headline(score: int) -> str:
+    """Generate a short headline based on the score."""
+    if score >= 85:
+        return "Excellent presentation skills!"
+    elif score >= 70:
+        return "Strong performance with minor tweaks needed"
+    elif score >= 55:
+        return "Good foundation, keep practicing"
+    elif score >= 40:
+        return "Making progress, focus on key areas"
+    else:
+        return "Let's work on the fundamentals"
+
+
+async def generate_coaching_report(
     deepgram_data: Optional[Dict[str, Any]],
     twelvelabs_data: Optional[Dict[str, Any]],
     video_duration: float = 0,
-) -> Optional[Dict[str, Any]]:
-    """Generate comprehensive coaching report using Gemini.
+) -> Optional[GeminiReport]:
+    """Generate natural language coaching report using Gemini.
 
-    API_CALL: Google Gemini API
+    API_CALL: Gemini 1.5 Pro via backend.gemini.synthesis
 
     Args:
         deepgram_data: Raw transcription result from Deepgram
-        twelvelabs_data: Raw analysis result from TwelveLabs
+        twelvelabs_data: Raw analysis result from TwelveLabs (can be list or dict)
         video_duration: Video duration in seconds
 
     Returns:
-        GeminiReport dict or None if generation fails
+        GeminiReport with natural coaching advice, or None if generation fails
     """
-    if not _is_gemini_available():
-        logger.warning("Gemini API key not configured, skipping report generation")
+    if not is_gemini_available():
+        logger.warning("Gemini not available, skipping coaching report generation")
         return None
 
     if not deepgram_data and not twelvelabs_data:
@@ -192,57 +231,56 @@ async def generate_report(
         return None
 
     try:
-        # Prepare context
-        context = prepare_gemini_context(deepgram_data, twelvelabs_data, video_duration)
-        prompt = build_gemini_prompt(context)
+        logger.info("Generating natural coaching report...")
 
-        logger.info("Generating Gemini report...")
+        # Prepare TwelveLabs data in expected format (list of query results)
+        tl_data_list = []
+        if twelvelabs_data:
+            if isinstance(twelvelabs_data, list):
+                tl_data_list = twelvelabs_data
+            elif isinstance(twelvelabs_data, dict):
+                if "query_results" in twelvelabs_data:
+                    tl_data_list = twelvelabs_data["query_results"]
+                else:
+                    tl_data_list = [twelvelabs_data]
 
-        # TODO: Implement actual Gemini API call
-        # For now, return a placeholder that indicates the structure
-        # This will be replaced with actual google.generativeai call
+        # Get synthesis result for metrics and context
+        synthesis_result = await synthesize_analysis(
+            twelvelabs_data=tl_data_list,
+            deepgram_data=deepgram_data or {},
+        )
 
-        # Placeholder implementation:
-        # import google.generativeai as genai
-        # genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        # model = genai.GenerativeModel('gemini-1.5-pro')
-        # response = await asyncio.to_thread(model.generate_content, prompt)
-        # result = json.loads(response.text)
+        # Log the synthesis result
+        result_dict = synthesis_result.to_dict()
+        logger.info("=" * 60)
+        logger.info("SYNTHESIS RESULT FOR COACHING")
+        logger.info("=" * 60)
+        logger.info(f"Coherence Score: {result_dict.get('overall_coherence_score', 'N/A')}")
+        logger.info(f"Metrics: {result_dict.get('metrics', {})}")
+        logger.info(f"Strengths: {result_dict.get('strengths', [])}")
+        logger.info(f"Priorities: {result_dict.get('top_3_priorities', [])}")
+        logger.info("=" * 60)
 
-        logger.info("Gemini report generation complete")
+        # Generate natural language coaching
+        coaching_advice = await _generate_natural_coaching(
+            synthesis_result=synthesis_result,
+            deepgram_data=deepgram_data,
+        )
 
-        # Return placeholder structure (to be replaced with actual API response)
-        return {
-            "summary": "Gemini analysis pending - API integration in progress",
-            "overallAssessment": "Full assessment will be generated once Gemini API is connected.",
-            "keyStrengths": [],
-            "areasForImprovement": [],
-            "immediateActions": ["Connect Gemini API to enable full analysis"],
-            "practiceExercises": [],
-            "speechAnalysis": f"Speech data available: {context['has_speech_data']}",
-            "bodyLanguageAnalysis": f"Visual data available: {context['has_visual_data']}",
-            "contentCoherenceAnalysis": None,
-            "generatedAt": datetime.utcnow().isoformat(),
-            "modelUsed": "placeholder",
-        }
+        # Generate headline
+        score = result_dict.get('overall_coherence_score', 50)
+        headline = _generate_headline(score)
+
+        report = GeminiReport(
+            coachingAdvice=coaching_advice,
+            headline=headline,
+            generatedAt=datetime.utcnow().isoformat(),
+            modelUsed="gemini-1.5-pro",
+        )
+
+        logger.info("Natural coaching report generated successfully")
+        return report
 
     except Exception as e:
-        logger.error(f"Gemini report generation failed: {e}", exc_info=True)
+        logger.error(f"Coaching report generation failed: {e}", exc_info=True)
         return None
-
-
-def get_cached_analysis_for_gemini(video_id: str, cache: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Get cached analysis data formatted for Gemini.
-
-    Args:
-        video_id: Video identifier
-        cache: The _analysis_cache dict from video_service
-
-    Returns:
-        Dict with deepgram_data and twelvelabs_data ready for Gemini
-    """
-    cached = cache.get(video_id, {})
-    return {
-        "deepgram_data": cached.get("deepgram_data"),
-        "twelvelabs_data": cached.get("twelvelabs_data"),
-    }

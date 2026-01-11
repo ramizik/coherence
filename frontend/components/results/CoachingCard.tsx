@@ -1,8 +1,7 @@
-import { Badge } from '../ui/badge';
-import { Clock, Lightbulb, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
-import { cn } from '../ui/utils';
-import { formatTimestamp, type DissonanceFlag } from '../../lib/mock-data';
+import { AlertCircle, AlertTriangle, Clock, Info, Lightbulb, X } from 'lucide-react';
 import { useState } from 'react';
+import { formatTimestamp, type DissonanceFlag } from '../../lib/mock-data';
+import { cn } from '../ui/utils';
 
 interface CoachingCardProps {
   flag: DissonanceFlag;
@@ -22,7 +21,7 @@ function formatDissonanceType(type: string): string {
  * - HIGH: border-red-500 border-2
  * - MEDIUM: border-amber-500 border
  * - LOW: border-emerald-500 border
- * 
+ *
  * Features:
  * - Dismissible with smooth fade-out animation
  * - Click timestamp to jump to video moment

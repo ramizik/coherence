@@ -1,7 +1,7 @@
 # 🗺️ ROADMAP.md - Coherence 24-Hour Build Plan
 
-**Last Updated:** Jan 11 2026 12:30AM
-**Current Stage:** `STAGE_3_INTEGRATION` ← Frontend-backend integration complete, results page integrated
+**Last Updated:** Jan 11 2026 01:00AM
+**Current Stage:** `STAGE_3_INTEGRATION` ← Frontend-backend integration complete, results page integrated, transcript extraction fixed
 
 ---
 
@@ -454,6 +454,18 @@ Upload Video → [Track A: Deepgram] → Transcript + Metrics
 - Error handling with retry capability
 - ProcessingView card design preserved during integration
 
+**Transcript Extraction Fix (Jan 11):**
+- **Issue:** Frontend displayed fake "analysis descriptions" instead of actual speech transcripts
+- **Root cause:** `_convert_analysis_to_result()` wasn't extracting transcript from Deepgram data
+- **Fix Location:** `backend/app/services/video_service.py`
+- **Changes:**
+  - Added `TranscriptSegment` to imports
+  - `_convert_analysis_to_result()` now extracts `words` array from `deepgram_data`
+  - Groups words into ~10-word segments with timestamps
+  - `_convert_deepgram_only_result()` updated with same logic
+- **Frontend handling:** `frontend/lib/api.ts` transforms `ApiTranscriptSegment[]` to `TranscriptSegment[]`
+- **Fallback:** If no transcript, frontend generates basic segments from dissonance flags
+
 ---
 
 ## 🎨 STAGE 4: Dashboard Polish (H16 to H20)
@@ -792,6 +804,7 @@ IF processing_timeout OR api_failure:
 - ✅ Results page with all components (VideoPlayer, CoachingCard, ScoreBadge, DissonanceTimeline, MetricsRow)
 - ✅ ProcessingView card design preserved
 - ✅ Mock data fallback for demo reliability
+- ✅ **Transcript extraction from Deepgram** - Real speech transcripts now returned in API response
 
 **Blockers:** None
 **Next Checkpoint:** BK-1.2 (Deepgram integration), BK-2.1 (Gemini synthesis), BK-2.5 (TwelveLabs semantic queries)
@@ -823,6 +836,7 @@ IF processing_timeout OR api_failure:
 - **PP-003:** Track C (FFmpeg): ~2-5 seconds for slide extraction
 - **PP-004:** Gemini synthesis: ~10-20 seconds for multimodal analysis
 - **PP-005:** Total pipeline: target <60 seconds for 2-min video
+- **PP-006:** Transcript extraction: Deepgram words → ~10-word segments with timestamps
 
 ### Demo Caching Strategy
 
@@ -881,5 +895,5 @@ if video_id in DEMO_VIDEOS:
 
 ---
 
-**Last Updated:** Jan 11 2026 12:30AM
+**Last Updated:** Jan 11 2026 01:00AM
 **Team Motto:** Ship fast, demo strong, win hackathon! 🏆

@@ -15,16 +15,17 @@ You are Figma Make AI generating **production-quality, frontend-only React (Type
 
 ### 2. **Technology Stack (CRITICAL - NOT Next.js)**
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Vite** | 6.0+ | Build tool (NOT Next.js, NOT Create React App) |
-| **React** | 18.3+ | UI framework |
-| **TypeScript** | 5.5+ | Type safety |
-| **TailwindCSS** | v4 | Styling with glassmorphism theme |
-| **shadcn/ui** | Latest | Pre-built Radix UI components |
-| **Lucide React** | Latest | Icons |
+| Technology       | Version | Purpose                                        |
+| ---------------- | ------- | ---------------------------------------------- |
+| **Vite**         | 6.0+    | Build tool (NOT Next.js, NOT Create React App) |
+| **React**        | 18.3+   | UI framework                                   |
+| **TypeScript**   | 5.5+    | Type safety                                    |
+| **TailwindCSS**  | v4      | Styling with glassmorphism theme               |
+| **shadcn/ui**    | Latest  | Pre-built Radix UI components                  |
+| **Lucide React** | Latest  | Icons                                          |
 
 **⚠️ IMPORTANT:**
+
 - This is a **Vite + React SPA**, not Next.js
 - No `app/` router, no `page.tsx`, no server components
 - No `'use client'` directives needed (everything is client-side)
@@ -126,13 +127,13 @@ coherence/                       # Repository root (run npm commands here)
 
 ```tsx
 // ✅ CORRECT imports
-import { Button } from '@/components/ui/button';
-import { mockAnalysisResult } from '@/lib/mock-data';
-import logoImage from '@/assets/logo.png';
+import { Button } from "@/components/ui/button";
+import { mockAnalysisResult } from "@/lib/mock-data";
+import logoImage from "@/assets/logo.png";
 
 // ❌ WRONG imports
-import { Button } from '@/src/components/ui/button';
-import { Button } from 'src/components/ui/button';
+import { Button } from "@/src/components/ui/button";
+import { Button } from "src/components/ui/button";
 ```
 
 ---
@@ -147,8 +148,8 @@ import { Button } from 'src/components/ui/button';
 
 ```tsx
 // ✅ PREFERRED - Standard Vite/React format
-import logoImage from '@/assets/logo.png';
-import heroBackground from '@/assets/hero-bg.jpg';
+import logoImage from "@/assets/logo.png";
+import heroBackground from "@/assets/hero-bg.jpg";
 
 // ⚠️ FIGMA FORMAT - Will be converted during integration
 // import logoImage from 'figma:asset/logo.png';
@@ -161,9 +162,9 @@ import heroBackground from '@/assets/hero-bg.jpg';
 
 ```tsx
 // ✅ CORRECT - No version numbers
-import { Play, Pause, Upload, ChevronRight } from 'lucide-react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { Slot } from '@radix-ui/react-slot';
+import { Play, Pause, Upload, ChevronRight } from "lucide-react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "@radix-ui/react-slot";
 
 // ⚠️ FIGMA FORMAT - Will be aliased via vite.config.ts
 // import { Play } from 'lucide-react@0.487.0';
@@ -175,13 +176,13 @@ import { Slot } from '@radix-ui/react-slot';
 
 **If you must use versioned imports (Figma default), these are pre-aliased in vite.config.ts:**
 
-| Figma Export Format | Resolves To |
-|---------------------|-------------|
-| `lucide-react@0.487.0` | `lucide-react` |
+| Figma Export Format              | Resolves To                |
+| -------------------------------- | -------------------------- |
+| `lucide-react@0.487.0`           | `lucide-react`             |
 | `class-variance-authority@0.7.1` | `class-variance-authority` |
-| `@radix-ui/react-slot@1.1.2` | `@radix-ui/react-slot` |
-| `@radix-ui/react-dialog@1.1.6` | `@radix-ui/react-dialog` |
-| ... (all Radix UI packages) | ... |
+| `@radix-ui/react-slot@1.1.2`     | `@radix-ui/react-slot`     |
+| `@radix-ui/react-dialog@1.1.6`   | `@radix-ui/react-dialog`   |
+| ... (all Radix UI packages)      | ...                        |
 
 ---
 
@@ -202,28 +203,28 @@ import { Slot } from '@radix-ui/react-slot';
  */
 export interface AnalysisResult {
   videoId: string;
-  videoUrl: string;           // URL to serve video: /videos/{videoId}.mp4
-  durationSeconds: number;    // Video duration
-  coherenceScore: number;     // 0-100, calculated by backend
-  scoreTier: ScoreTier;       // Human-readable tier
+  videoUrl: string; // URL to serve video: /videos/{videoId}.mp4
+  durationSeconds: number; // Video duration
+  coherenceScore: number; // 0-100, calculated by backend
+  scoreTier: ScoreTier; // Human-readable tier
   metrics: AnalysisMetrics;
   dissonanceFlags: DissonanceFlag[];
-  timelineHeatmap: TimelinePoint[];  // For timeline visualization
-  strengths: string[];        // What presenter did well
-  priorities: string[];       // Top 3 improvement areas
-  transcript?: TranscriptSegment[];  // Optional, for transcript view
+  timelineHeatmap: TimelinePoint[]; // For timeline visualization
+  strengths: string[]; // What presenter did well
+  priorities: string[]; // Top 3 improvement areas
+  transcript?: TranscriptSegment[]; // Optional, for transcript view
 }
 
-export type ScoreTier = 'Needs Work' | 'Good Start' | 'Strong';
+export type ScoreTier = "Needs Work" | "Good Start" | "Strong";
 
 /**
  * Metrics extracted from video analysis
  */
 export interface AnalysisMetrics {
-  eyeContact: number;         // Percentage (0-100)
-  fillerWords: number;        // Count of "um", "uh", "like", etc.
-  fidgeting: number;          // Count of fidgeting instances
-  speakingPace: number;       // Words per minute (WPM)
+  eyeContact: number; // Percentage (0-100)
+  fillerWords: number; // Count of "um", "uh", "like", etc.
+  fidgeting: number; // Count of fidgeting instances
+  speakingPace: number; // Words per minute (WPM)
   speakingPaceTarget?: string; // e.g., "140-160" WPM
 }
 
@@ -231,34 +232,37 @@ export interface AnalysisMetrics {
  * A single dissonance flag (visual-verbal mismatch)
  */
 export interface DissonanceFlag {
-  id: string;                 // Unique identifier
-  timestamp: number;          // Seconds from video start
-  endTimestamp?: number;      // End time for clip duration
+  id: string; // Unique identifier
+  timestamp: number; // Seconds from video start
+  endTimestamp?: number; // End time for clip duration
   type: DissonanceType;
   severity: Severity;
-  description: string;        // What was detected
-  coaching: string;           // Actionable fix advice
-  visualEvidence?: string;    // What TwelveLabs detected
-  verbalEvidence?: string;    // What Deepgram transcribed
+  description: string; // What was detected
+  coaching: string; // Actionable fix advice
+  visualEvidence?: string; // What TwelveLabs detected
+  verbalEvidence?: string; // What Deepgram transcribed
 }
 
 export type DissonanceType =
-  | 'EMOTIONAL_MISMATCH'      // Happy words + anxious face
-  | 'MISSING_GESTURE'         // "Look at this" without pointing
-  | 'PACING_MISMATCH';        // Dense slide shown too briefly
+  | "EMOTIONAL_MISMATCH" // Happy words + anxious face
+  | "MISSING_GESTURE" // "Look at this" without pointing
+  | "PACING_MISMATCH"; // Dense slide shown too briefly
 
-export type Severity = 'HIGH' | 'MEDIUM' | 'LOW';
+export type Severity = "HIGH" | "MEDIUM" | "LOW";
 
 /**
  * Point on the timeline heatmap
  */
 export interface TimelinePoint {
-  timestamp: number;          // Seconds
-  severity: Severity;         // Color coding
+  timestamp: number; // Seconds
+  severity: Severity; // Color coding
 }
 
 /**
  * Optional transcript segment for detailed view
+ *
+ * Backend extracts words from Deepgram and groups into ~10-word segments.
+ * Frontend transforms to display format with id and timestamp properties.
  */
 export interface TranscriptSegment {
   text: string;
@@ -277,9 +281,9 @@ export interface TranscriptSegment {
  */
 export interface UploadResponse {
   videoId: string;
-  status: 'processing';
-  estimatedTime: number;      // Seconds until complete
-  durationSeconds: number;    // Video duration
+  status: "processing";
+  estimatedTime: number; // Seconds until complete
+  durationSeconds: number; // Video duration
 }
 
 /**
@@ -288,20 +292,20 @@ export interface UploadResponse {
  */
 export interface StatusResponse {
   videoId: string;
-  status: 'queued' | 'processing' | 'complete' | 'error';
-  progress: number;           // 0-100
-  stage: string;              // Current processing step (for UX)
-  etaSeconds?: number;        // Estimated time remaining
-  error?: string;             // Error message if status === 'error'
+  status: "queued" | "processing" | "complete" | "error";
+  progress: number; // 0-100
+  stage: string; // Current processing step (for UX)
+  etaSeconds?: number; // Estimated time remaining
+  error?: string; // Error message if status === 'error'
 }
 
 /**
  * Standard error response from backend
  */
 export interface ApiError {
-  error: string;              // User-friendly message
-  code: string;               // Error code (e.g., 'VIDEO_TOO_LONG')
-  retryable: boolean;         // Show retry button if true
+  error: string; // User-friendly message
+  code: string; // Error code (e.g., 'VIDEO_TOO_LONG')
+  retryable: boolean; // Show retry button if true
 }
 
 // ========================
@@ -317,8 +321,8 @@ export interface VideoPlayerProps {
 
 export interface TimelineProps {
   flags: DissonanceFlag[];
-  duration: number;        // Total video duration in seconds
-  currentTime?: number;    // Current playhead position
+  duration: number; // Total video duration in seconds
+  currentTime?: number; // Current playhead position
   onSeek: (timestamp: number) => void;
 }
 
@@ -328,8 +332,8 @@ export interface CoachingCardProps {
 }
 
 export interface ScoreBadgeProps {
-  score: number;           // 0-100
-  size?: 'sm' | 'md' | 'lg';
+  score: number; // 0-100
+  size?: "sm" | "md" | "lg";
 }
 
 export interface MetricsRowProps {
@@ -374,7 +378,7 @@ const handleUpload = async (file: File): Promise<void> => {
   const mockVideoId = crypto.randomUUID();
 
   // Simulate upload delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   // Navigate to processing page
   navigate(`/processing/${mockVideoId}`);
@@ -398,7 +402,7 @@ const pollStatus = async (videoId: string): Promise<StatusResponse> => {
   // MOCK IMPLEMENTATION - Replace with actual API call
   return {
     videoId,
-    status: 'processing',
+    status: "processing",
     progress: Math.min(currentProgress + 10, 100),
     message: getStatusMessage(currentProgress),
   };
@@ -450,6 +454,7 @@ export function UploadPage() {
 ```
 
 **Requirements:**
+
 - Drag-and-drop zone with visual feedback on dragover
 - File type validation (MP4, MOV only)
 - File size validation (500MB max)
@@ -479,6 +484,7 @@ export function ProcessingPage() {
 ```
 
 **Status Messages (cycle through):**
+
 1. "Extracting audio from video..."
 2. "Transcribing speech with Deepgram..."
 3. "Analyzing body language with TwelveLabs..."
@@ -519,12 +525,8 @@ export function ProcessingPage() {
 
     {/* Right: Coaching Cards */}
     <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
-      {result.dissonanceFlags.map(flag => (
-        <CoachingCard
-          key={flag.id}
-          flag={flag}
-          onJumpTo={handleSeek}
-        />
+      {result.dissonanceFlags.map((flag) => (
+        <CoachingCard key={flag.id} flag={flag} onJumpTo={handleSeek} />
       ))}
     </div>
   </div>
@@ -548,12 +550,18 @@ export function ProcessingPage() {
  * @param currentTime - Current playhead position (for indicator)
  * @param onSeek - Callback when user clicks to seek
  */
-export function DissonanceTimeline({ flags, duration, currentTime, onSeek }: TimelineProps) {
+export function DissonanceTimeline({
+  flags,
+  duration,
+  currentTime,
+  onSeek,
+}: TimelineProps) {
   // Implementation using Canvas or SVG
 }
 ```
 
 **Requirements:**
+
 - Minimum size: 100% width × 60px height
 - Green (#10B981) to Red (#EF4444) gradient based on flag density
 - Clickable anywhere to seek video
@@ -576,12 +584,14 @@ export function DissonanceTimeline({ flags, duration, currentTime, onSeek }: Tim
  */
 export function CoachingCard({ flag, onJumpTo }: CoachingCardProps) {
   return (
-    <div className={cn(
-      "p-6 rounded-xl bg-white/5 backdrop-blur-md",
-      flag.severity === 'HIGH' && "border-2 border-red-500",
-      flag.severity === 'MEDIUM' && "border border-amber-500",
-      flag.severity === 'LOW' && "border border-emerald-500",
-    )}>
+    <div
+      className={cn(
+        "p-6 rounded-xl bg-white/5 backdrop-blur-md",
+        flag.severity === "HIGH" && "border-2 border-red-500",
+        flag.severity === "MEDIUM" && "border border-amber-500",
+        flag.severity === "LOW" && "border border-emerald-500"
+      )}
+    >
       {/* Type badge + timestamp */}
       <div className="flex items-center justify-between mb-3">
         <Badge variant={flag.severity.toLowerCase()}>
@@ -596,9 +606,7 @@ export function CoachingCard({ flag, onJumpTo }: CoachingCardProps) {
       <p className="text-white mb-2">{flag.description}</p>
 
       {/* Coaching advice */}
-      <p className="text-cyan-400 text-sm mb-4">
-        💡 Fix: {flag.coaching}
-      </p>
+      <p className="text-cyan-400 text-sm mb-4">💡 Fix: {flag.coaching}</p>
 
       {/* Jump to moment button */}
       <button
@@ -620,38 +628,39 @@ export function CoachingCard({ flag, onJumpTo }: CoachingCardProps) {
 
 ```tsx
 // Standard glassmorphic card
-className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl"
+className = "bg-white/5 backdrop-blur-md border border-white/10 rounded-xl";
 
 // Elevated glassmorphic card
-className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl shadow-purple-500/10"
+className =
+  "bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl shadow-purple-500/10";
 ```
 
 ### Color-Coded Elements by Score
 
-| Score Range | Color | Tailwind Class | Use Case |
-|-------------|-------|----------------|----------|
-| 76-100 | Green | `text-emerald-400`, `border-emerald-500` | Success, good metrics |
-| 51-75 | Amber | `text-amber-400`, `border-amber-500` | Warning, needs improvement |
-| 0-50 | Red | `text-red-400`, `border-red-500` | Danger, critical issues |
+| Score Range | Color | Tailwind Class                           | Use Case                   |
+| ----------- | ----- | ---------------------------------------- | -------------------------- |
+| 76-100      | Green | `text-emerald-400`, `border-emerald-500` | Success, good metrics      |
+| 51-75       | Amber | `text-amber-400`, `border-amber-500`     | Warning, needs improvement |
+| 0-50        | Red   | `text-red-400`, `border-red-500`         | Danger, critical issues    |
 
 ### Dark Theme Base
 
 ```tsx
 // Page background
-className="min-h-screen bg-slate-950"
+className = "min-h-screen bg-slate-950";
 
 // Card backgrounds
-className="bg-slate-900/50 backdrop-blur-md"
+className = "bg-slate-900/50 backdrop-blur-md";
 
 // Primary text
-className="text-white"
+className = "text-white";
 
 // Secondary text
-className="text-gray-400"
+className = "text-gray-400";
 
 // Accent text
-className="text-purple-400"  // Primary accent
-className="text-cyan-400"    // Secondary accent / coaching tips
+className = "text-purple-400"; // Primary accent
+className = "text-cyan-400"; // Secondary accent / coaching tips
 ```
 
 ### Spacing System (8px grid)
@@ -680,74 +689,122 @@ rounded-2xl   // 16px - large containers
 ### Create in `frontend/lib/mock-data.ts`
 
 ```typescript
-import type { AnalysisResult, StatusResponse } from '@/types';
+import type { AnalysisResult, StatusResponse } from "@/types";
 
 export const mockAnalysisResult: AnalysisResult = {
-  videoId: 'demo-video-1',
-  videoUrl: '/mock-videos/sample-pitch.mp4',
+  videoId: "demo-video-1",
+  videoUrl: "/mock-videos/sample-pitch.mp4",
   durationSeconds: 183,
   coherenceScore: 67,
-  scoreTier: 'Good Start',
+  scoreTier: "Good Start",
   metrics: {
     eyeContact: 62,
     fillerWords: 12,
     fidgeting: 8,
     speakingPace: 156,
-    speakingPaceTarget: '140-160',
+    speakingPaceTarget: "140-160",
   },
   dissonanceFlags: [
     {
-      id: 'flag-1',
+      id: "flag-1",
       timestamp: 45.2,
       endTimestamp: 48.0,
-      type: 'EMOTIONAL_MISMATCH',
-      severity: 'HIGH',
-      description: 'Said "thrilled to present" but facial expression showed anxiety',
-      coaching: 'Practice saying this line while smiling in a mirror. Your face should match your excitement.',
+      type: "EMOTIONAL_MISMATCH",
+      severity: "HIGH",
+      description:
+        'Said "thrilled to present" but facial expression showed anxiety',
+      coaching:
+        "Practice saying this line while smiling in a mirror. Your face should match your excitement.",
       visualEvidence: 'TwelveLabs: "person looking anxious" at 0:43-0:48',
       verbalEvidence: 'Deepgram: "thrilled" (positive sentiment)',
     },
     {
-      id: 'flag-2',
+      id: "flag-2",
       timestamp: 83.5,
-      type: 'MISSING_GESTURE',
-      severity: 'MEDIUM',
+      type: "MISSING_GESTURE",
+      severity: "MEDIUM",
       description: 'Said "look at this data" without pointing at screen',
-      coaching: 'When referencing visuals, physically point to anchor audience attention.',
+      coaching:
+        "When referencing visuals, physically point to anchor audience attention.",
       verbalEvidence: 'Deepgram: deictic phrase "this data" detected',
     },
     {
-      id: 'flag-3',
+      id: "flag-3",
       timestamp: 135.8,
       endTimestamp: 149.8,
-      type: 'PACING_MISMATCH',
-      severity: 'HIGH',
-      description: 'Slide 4 contains 127 words but only shown for 14 seconds',
-      coaching: 'Either reduce slide text to <50 words or extend explanation to ~45 seconds.',
+      type: "PACING_MISMATCH",
+      severity: "HIGH",
+      description: "Slide 4 contains 127 words but only shown for 14 seconds",
+      coaching:
+        "Either reduce slide text to <50 words or extend explanation to ~45 seconds.",
     },
   ],
   timelineHeatmap: [
-    { timestamp: 12, severity: 'LOW' },
-    { timestamp: 45, severity: 'HIGH' },
-    { timestamp: 83, severity: 'MEDIUM' },
-    { timestamp: 135, severity: 'HIGH' },
+    { timestamp: 12, severity: "LOW" },
+    { timestamp: 45, severity: "HIGH" },
+    { timestamp: 83, severity: "MEDIUM" },
+    { timestamp: 135, severity: "HIGH" },
   ],
-  strengths: ['Clear voice projection', 'Logical structure', 'Good pacing overall'],
+  strengths: [
+    "Clear voice projection",
+    "Logical structure",
+    "Good pacing overall",
+  ],
   priorities: [
-    'Reduce nervous fidgeting (8 instances detected)',
-    'Increase eye contact with camera (currently 62%, target 80%)',
-    'Match facial expressions to emotional language',
+    "Reduce nervous fidgeting (8 instances detected)",
+    "Increase eye contact with camera (currently 62%, target 80%)",
+    "Match facial expressions to emotional language",
   ],
 };
 
 export const mockStatusSequence: StatusResponse[] = [
-  { videoId: 'demo', status: 'queued', progress: 0, stage: 'Queued for processing...' },
-  { videoId: 'demo', status: 'processing', progress: 10, stage: 'Extracting audio...', etaSeconds: 50 },
-  { videoId: 'demo', status: 'processing', progress: 25, stage: 'Transcribing speech...', etaSeconds: 40 },
-  { videoId: 'demo', status: 'processing', progress: 45, stage: 'Analyzing body language...', etaSeconds: 30 },
-  { videoId: 'demo', status: 'processing', progress: 65, stage: 'Detecting dissonance patterns...', etaSeconds: 20 },
-  { videoId: 'demo', status: 'processing', progress: 85, stage: 'Generating coaching insights...', etaSeconds: 10 },
-  { videoId: 'demo', status: 'complete', progress: 100, stage: 'Analysis complete!' },
+  {
+    videoId: "demo",
+    status: "queued",
+    progress: 0,
+    stage: "Queued for processing...",
+  },
+  {
+    videoId: "demo",
+    status: "processing",
+    progress: 10,
+    stage: "Extracting audio...",
+    etaSeconds: 50,
+  },
+  {
+    videoId: "demo",
+    status: "processing",
+    progress: 25,
+    stage: "Transcribing speech...",
+    etaSeconds: 40,
+  },
+  {
+    videoId: "demo",
+    status: "processing",
+    progress: 45,
+    stage: "Analyzing body language...",
+    etaSeconds: 30,
+  },
+  {
+    videoId: "demo",
+    status: "processing",
+    progress: 65,
+    stage: "Detecting dissonance patterns...",
+    etaSeconds: 20,
+  },
+  {
+    videoId: "demo",
+    status: "processing",
+    progress: 85,
+    stage: "Generating coaching insights...",
+    etaSeconds: 10,
+  },
+  {
+    videoId: "demo",
+    status: "complete",
+    progress: 100,
+    stage: "Analysis complete!",
+  },
 ];
 ```
 
@@ -778,18 +835,18 @@ export const mockStatusSequence: StatusResponse[] = [
 
 ## 🚨 Common Pitfalls to Avoid
 
-| Issue | Wrong | Correct |
-|-------|-------|---------|
-| Framework | Next.js App Router | Vite + React SPA |
-| File structure | `/app/page.tsx` | `frontend/pages/UploadPage.tsx` |
-| Path alias | `@/src/components` | `@/components` |
-| Entry point | `pages/_app.tsx` | `frontend/main.tsx` |
-| Server components | `'use client'` directive | Not needed (all client) |
-| Asset imports | `figma:asset/logo.png` | `@/assets/logo.png` |
-| Package imports | `lucide-react@0.487.0` | `lucide-react` |
-| Style tag | `<style jsx>` | `<style>` (no jsx attribute) |
-| Relative imports | `../../lib/mock-data` | `@/lib/mock-data` |
-| Type imports | Import from `mock-data.ts` | Import from `@/types` |
+| Issue             | Wrong                      | Correct                         |
+| ----------------- | -------------------------- | ------------------------------- |
+| Framework         | Next.js App Router         | Vite + React SPA                |
+| File structure    | `/app/page.tsx`            | `frontend/pages/UploadPage.tsx` |
+| Path alias        | `@/src/components`         | `@/components`                  |
+| Entry point       | `pages/_app.tsx`           | `frontend/main.tsx`             |
+| Server components | `'use client'` directive   | Not needed (all client)         |
+| Asset imports     | `figma:asset/logo.png`     | `@/assets/logo.png`             |
+| Package imports   | `lucide-react@0.487.0`     | `lucide-react`                  |
+| Style tag         | `<style jsx>`              | `<style>` (no jsx attribute)    |
+| Relative imports  | `../../lib/mock-data`      | `@/lib/mock-data`               |
+| Type imports      | Import from `mock-data.ts` | Import from `@/types`           |
 
 ---
 
@@ -817,13 +874,13 @@ export const mockStatusSequence: StatusResponse[] = [
 
 ```tsx
 // ❌ WRONG - Relative imports cause type mismatches
-import { formatTimestamp, type DissonanceFlag } from '../../lib/mock-data';
-import { cn } from '../ui/utils';
+import { formatTimestamp, type DissonanceFlag } from "../../lib/mock-data";
+import { cn } from "../ui/utils";
 
 // ✅ CORRECT - Consistent path aliases
-import { formatTimestamp } from '@/lib/mock-data';
-import type { DissonanceFlag } from '@/types';
-import { cn } from '@/components/ui/utils';
+import { formatTimestamp } from "@/lib/mock-data";
+import type { DissonanceFlag } from "@/types";
+import { cn } from "@/components/ui/utils";
 ```
 
 **Why this matters:** When different files import types from different locations, you get duplicate type definitions that don't match, causing subtle bugs.
@@ -884,8 +941,8 @@ useEffect(() => {
   fetchResults(videoId)
     .then(setResult)
     .catch((err) => {
-      console.error('API failed, using mock:', err);
-      setResult(mockAnalysisResult);  // Fallback for demo
+      console.error("API failed, using mock:", err);
+      setResult(mockAnalysisResult); // Fallback for demo
     });
 }, [videoId]);
 ```
@@ -894,11 +951,11 @@ useEffect(() => {
 
 **Use consistent callback naming across the app:**
 
-| Action | Prop Name | Example |
-|--------|-----------|---------|
-| Navigate to page | `onNavigateTo{Page}` | `onNavigateToResults` |
-| Go back | `onBackTo{Page}` | `onBackToUpload` |
-| Action complete | `on{Action}Complete` | `onProcessingComplete` |
+| Action           | Prop Name            | Example                |
+| ---------------- | -------------------- | ---------------------- |
+| Navigate to page | `onNavigateTo{Page}` | `onNavigateToResults`  |
+| Go back          | `onBackTo{Page}`     | `onBackToUpload`       |
+| Action complete  | `on{Action}Complete` | `onProcessingComplete` |
 
 ```tsx
 // ✅ Consistent naming
@@ -931,6 +988,7 @@ const handleSubmit = async () => {
 ```
 
 **The API service layer provides:**
+
 - Centralized error handling with `VideoAnalysisError`
 - Type-safe responses
 - Easy mocking for tests
@@ -959,9 +1017,43 @@ export const mockAnalysisResult: AnalysisResult = { ... };
 ```
 
 This allows components to import from one place:
+
 ```tsx
-import { formatTimestamp, mockAnalysisResult, type DissonanceFlag } from '@/lib/mock-data';
+import {
+  formatTimestamp,
+  mockAnalysisResult,
+  type DissonanceFlag,
+} from "@/lib/mock-data";
 ```
+
+### 9. Transcript Data Flow (Backend → Frontend)
+
+**Backend extracts actual speech from Deepgram, not analysis descriptions.**
+
+```
+Deepgram API Response
+  └── words: [{ word: "Hello", start: 0.1, end: 0.3, confidence: 0.98 }, ...]
+      │
+      ▼
+Backend: _convert_analysis_to_result()
+  └── Groups into ~10-word segments
+  └── Returns: transcript: [{ text: "Hello world...", start: 0.1, end: 2.5 }, ...]
+      │
+      ▼
+Frontend: transformApiResult()
+  └── Converts to UI format: { id, timestamp, text, highlight }
+      │
+      ▼
+TranscriptPanel component displays real speech
+```
+
+**If transcript is missing (API failure), frontend falls back to generating placeholder segments from dissonance flags.**
+
+**Key files:**
+
+- `backend/app/services/video_service.py` → `_convert_analysis_to_result()` extracts transcript
+- `frontend/lib/api.ts` → `transformApiResult()` converts to UI format
+- `frontend/components/results/TranscriptPanel.tsx` → displays transcript
 
 ---
 
@@ -1005,13 +1097,13 @@ When Cursor integrates your code, it will:
 ```typescript
 // Your mock implementation
 const fetchResults = async (videoId: string): Promise<AnalysisResult> => {
-  return mockAnalysisResult;  // MOCK
+  return mockAnalysisResult; // MOCK
 };
 
 // Backend engineer replaces with:
 const fetchResults = async (videoId: string): Promise<AnalysisResult> => {
   const response = await fetch(`${API_BASE}/api/videos/${videoId}/results`);
-  if (!response.ok) throw new Error('Failed to fetch results');
+  if (!response.ok) throw new Error("Failed to fetch results");
   return response.json();
 };
 ```

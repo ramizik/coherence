@@ -264,6 +264,8 @@ function transformApiResultToFrontend(apiResult: ApiAnalysisResult): AnalysisRes
     videoUrl: apiResult.videoUrl.startsWith('http')
       ? apiResult.videoUrl
       : `${API_BASE_URL}${apiResult.videoUrl}`,
+    // Pass through Gemini comprehensive report if available
+    geminiReport: apiResult.geminiReport,
   };
 }
 

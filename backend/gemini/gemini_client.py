@@ -9,10 +9,16 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables from .env file in repository root
 env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(env_path)
+logger.info(f"Looking for .env at: {env_path.resolve()}")
+logger.info(f".env file exists: {env_path.exists()}")
+
+# Load the .env file
+loaded = load_dotenv(env_path, override=True)
+logger.info(f"dotenv loaded: {loaded}")
 
 # Initialize the Gemini client using API key from environment
 api_key = os.getenv("GEMINI_API_KEY")
+logger.info(f"GEMINI_API_KEY found: {bool(api_key)}")
 
 client = None
 
