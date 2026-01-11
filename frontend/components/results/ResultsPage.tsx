@@ -273,7 +273,8 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
               </h2>
             </div>
 
-            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+            {/* Scrollable container - height matches left column (Video + Timeline + Transcript) */}
+            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-12" style={{ maxHeight: '620px' }}>
               {activeFlags.length > 0 ? (
                 activeFlags.map((flag) => (
                   <CoachingCard
@@ -293,7 +294,7 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
             </div>
 
             {/* Gradient fade-out overlay */}
-            <div className="absolute bottom-0 left-0 right-0 h-[80px] pointer-events-none bg-gradient-to-t from-[#0F172A] to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-[60px] pointer-events-none bg-gradient-to-t from-[#0F172A] to-transparent" />
           </div>
         </div>
       </div>
