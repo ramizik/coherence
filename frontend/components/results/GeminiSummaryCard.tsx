@@ -13,17 +13,17 @@ interface GeminiSummaryCardProps {
  * - headline: Optional short headline summarizing the assessment
  */
 export function GeminiSummaryCard({ coachingAdvice, headline }: GeminiSummaryCardProps) {
-  // Truncate text if too long (increased limit for more content)
-  const truncatedAdvice = coachingAdvice.length > 400
-    ? coachingAdvice.substring(0, 400) + '...'
+  // Truncate text if too long (extended limit for more content)
+  const truncatedAdvice = coachingAdvice.length > 700
+    ? coachingAdvice.substring(0, 700) + '...'
     : coachingAdvice;
 
   return (
     <div
       style={{
         width: '520px',
-        minHeight: '160px',
-        maxHeight: '220px',
+        minHeight: '180px',
+        maxHeight: '300px',
         backgroundColor: 'rgba(30, 41, 59, 0.8)',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: '12px',
@@ -45,7 +45,7 @@ export function GeminiSummaryCard({ coachingAdvice, headline }: GeminiSummaryCar
           margin: 0,
           overflow: 'hidden',
           display: '-webkit-box',
-          WebkitLineClamp: 6,
+          WebkitLineClamp: 10,
           WebkitBoxOrient: 'vertical',
         }}>
           {headline && (

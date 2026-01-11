@@ -61,57 +61,78 @@ def _build_coaching_prompt(
     fidgeting = metrics.get('fidgeting', 0)
 
     # Qualitative assessments
-    eye_contact_quality = "excellent" if eye_contact >= 80 else "good" if eye_contact >= 60 else "could use some work"
-    filler_quality = "very few filler words" if filler_count <= 3 else "some filler words" if filler_count <= 8 else "quite a few filler words"
-    pace_quality = "good pace" if 130 <= speaking_pace <= 170 else "a bit fast" if speaking_pace > 170 else "a bit slow"
-    fidget_quality = "calm and composed" if fidgeting <= 2 else "some nervous movements" if fidgeting <= 6 else "noticeable fidgeting"
+    eye_contact_quality = "excellent" if eye_contact >= 80 else "good" if eye_contact >= 60 else "needs improvement"
+    filler_quality = "minimal filler words" if filler_count <= 3 else "some filler words" if filler_count <= 8 else "frequent filler words"
+    pace_quality = "well-paced" if 130 <= speaking_pace <= 170 else "tends to rush" if speaking_pace > 170 else "could be more energetic"
+    fidget_quality = "composed body language" if fidgeting <= 2 else "some nervous movements" if fidgeting <= 6 else "noticeable fidgeting"
 
-    # Overall assessment
-    if score >= 80:
-        overall = "This was a strong presentation overall."
-    elif score >= 60:
-        overall = "This was a solid presentation with room to grow."
-    elif score >= 40:
-        overall = "There's good potential here with some areas to work on."
-    else:
-        overall = "This is a great starting point for improvement."
+    # Identify improvement areas (always find something to improve)
+    improvement_areas = []
+    practice_suggestions = []
 
-    # Build qualitative issues (no timestamps or numbers)
-    issues_natural = []
-    for flag in flags[:2]:  # Top 2 issues only
+    if eye_contact < 80:
+        improvement_areas.append("maintaining consistent eye contact")
+        practice_suggestions.append("Practice the 'triangle technique': look at your camera, then briefly to the left and right of it, creating a natural gaze pattern")
+    if filler_count > 3:
+        improvement_areas.append("reducing filler words")
+        practice_suggestions.append("Try the 'pause and breathe' exercise: when you feel an 'um' coming, pause silently for 2 seconds instead - silence is powerful")
+    if speaking_pace > 170 or speaking_pace < 130:
+        improvement_areas.append("pacing your delivery")
+        practice_suggestions.append("Record yourself reading a passage at different speeds, then listen back to find your optimal pace")
+    if fidgeting > 2:
+        improvement_areas.append("calm, purposeful body language")
+        practice_suggestions.append("Practice 'power posing' before presentations - stand with hands on hips for 2 minutes to reduce nervous energy")
+
+    # Add flag-based improvements
+    for flag in flags[:2]:
         desc = flag.get('description', '')
-        # Strip any numbers from description
+        flag_type = flag.get('type', '')
         if desc:
-            issues_natural.append(desc.split('(')[0].strip())  # Remove anything in parentheses
+            clean_desc = desc.split('(')[0].strip().lower()
+            if clean_desc and clean_desc not in str(improvement_areas).lower():
+                improvement_areas.append(clean_desc)
 
-    prompt = f"""You are a warm, encouraging presentation coach giving feedback to someone who just practiced. Write like you're having a friendly conversation with them.
+        # Add practice suggestions based on flag type
+        if flag_type == 'EMOTIONAL_MISMATCH' and "facial expressions" not in str(practice_suggestions):
+            practice_suggestions.append("Practice in front of a mirror, consciously matching your facial expressions to your emotional words")
+        elif flag_type == 'MISSING_GESTURE' and "gestures" not in str(practice_suggestions):
+            practice_suggestions.append("When rehearsing, deliberately point or gesture whenever you say 'this', 'here', or 'look at'")
+        elif flag_type == 'PACING_MISMATCH' and "chunking" not in str(practice_suggestions):
+            practice_suggestions.append("Try 'chunking' your content - pause briefly between main points to let ideas sink in")
+
+    # Default improvement if nothing specific found
+    if not improvement_areas:
+        improvement_areas.append("adding more vocal variety")
+        practice_suggestions.append("Practice reading children's books aloud with exaggerated expression to expand your vocal range")
+
+    prompt = f"""You are a warm, encouraging presentation coach giving detailed feedback. Write like you're having a friendly conversation.
 
 WHAT I OBSERVED:
-- Overall: {overall}
 - Eye contact: {eye_contact_quality}
-- Speech: {filler_quality}, {pace_quality}
+- Speech patterns: {filler_quality}, {pace_quality}
 - Body language: {fidget_quality}
-{f"- Notable moments: {', '.join(issues_natural)}" if issues_natural else ""}
 
-Write 4-5 sentences of natural coaching advice.
+AREAS TO ADDRESS (must mention these):
+{chr(10).join(f"- {area}" for area in improvement_areas[:3])}
+
+PRACTICE TECHNIQUES TO SUGGEST (pick 1-2 relevant ones):
+{chr(10).join(f"- {tip}" for tip in practice_suggestions[:3])}
+
+Write 5-7 sentences of coaching advice with this structure:
+
+STRUCTURE:
+1. Start with genuine, specific praise (1-2 sentences)
+2. Transition to improvement areas - ALWAYS mention at least one specific thing to work on, even if they did well overall (2-3 sentences)
+3. End with a specific practice technique they can do at home to improve (1-2 sentences)
 
 CRITICAL RULES:
-1. DO NOT include ANY numbers, percentages, counts, or statistics
-2. DO NOT say things like "X instances", "Y%", "Z words per minute"
-3. DO NOT use parentheses with metrics
-4. Write EXACTLY like a human coach would speak - warm, natural, conversational
-5. Start with genuine praise for something specific they did well
-6. Mention 1-2 areas to improve using descriptive language only
-7. Give one concrete tip they can try next time
-8. End with encouragement
+- DO NOT include ANY numbers, percentages, or statistics
+- ALWAYS include specific improvement suggestions, even for good presentations
+- ALWAYS end with a concrete practice exercise they can do
+- Write naturally like a human coach, not a formal report
+- Be encouraging but also genuinely helpful with actionable advice
 
-EXAMPLE OF GOOD OUTPUT:
-"You've got a really engaging presence on camera! I especially liked how you maintained eye contact throughout most of your presentation - that really helps connect with your audience. One thing to work on: I noticed you tend to speed up when you get to the exciting parts. Try taking a breath before your key points to let them land. You're doing great, and with a little more practice on pacing, you'll be even more compelling!"
-
-EXAMPLE OF BAD OUTPUT (never do this):
-"Great job! You had 85% eye contact and only 3 filler words (um, uh). Your speaking pace was 156 WPM which is within the optimal range of 140-160. You fidgeted 2 times. Keep practicing!"
-
-Write ONLY the coaching advice, nothing else:"""
+Write ONLY the coaching advice:"""
 
     return prompt
 
@@ -158,10 +179,12 @@ def _generate_fallback_coaching(
     """Generate fallback coaching advice when Gemini is unavailable.
 
     Uses fully natural language without any numbers or statistics.
+    Always includes improvement suggestions and practice techniques.
     """
     result_dict = synthesis_result.to_dict()
     score = result_dict.get('overall_coherence_score', 0)
     metrics = result_dict.get('metrics', {})
+    flags = result_dict.get('dissonance_flags', [])
 
     # Get metrics for qualitative assessment
     filler_count = metrics.get('fillerWords', 0)
@@ -174,7 +197,7 @@ def _generate_fallback_coaching(
     # Natural positive opening based on what went well
     if eye_contact >= 70:
         parts.append("Great job on your presentation! You did a wonderful job maintaining eye contact with the camera, which really helps connect with your audience.")
-    elif speaking_pace >= 130 and speaking_pace <= 170:
+    elif 130 <= speaking_pace <= 170:
         parts.append("Nice work on your presentation! Your pacing was really natural and easy to follow.")
     elif filler_count <= 5:
         parts.append("Great job on your presentation! You spoke clearly and confidently throughout.")
@@ -191,22 +214,58 @@ def _generate_fallback_coaching(
     else:
         parts.append("Everyone starts somewhere, and you've got a solid foundation to build on.")
 
-    # Natural improvement suggestions (no numbers ever)
-    if filler_count > 10:
-        parts.append("One thing to work on: try replacing filler words with brief pauses. A moment of silence actually sounds more confident than 'um' or 'uh'.")
-    elif fidgeting > 5:
-        parts.append("I noticed some nervous movement - try resting your hands in one position or using purposeful gestures to channel that energy.")
-    elif speaking_pace > 170:
-        parts.append("You tend to speed up at times - try taking a breath before your key points to let them really land with your audience.")
-    elif speaking_pace < 130:
-        parts.append("Consider picking up the energy a bit - varying your pace can help keep your audience engaged.")
-    elif eye_contact < 60:
-        parts.append("Try to look at the camera more often - it creates a connection with your audience even through the screen.")
-    else:
-        parts.append("Keep refining the small details and your delivery will become even more natural.")
+    # ALWAYS add improvement suggestion - find the most relevant one
+    improvement_added = False
 
-    # Encouraging close
-    parts.append("Keep practicing and trust the process - you're making great progress!")
+    # Check for flag-based issues first
+    for flag in flags[:1]:
+        flag_type = flag.get('type', '')
+        if flag_type == 'EMOTIONAL_MISMATCH':
+            parts.append("One area to focus on: your facial expressions could better match the emotion in your words. When you're saying something exciting, let that enthusiasm show on your face!")
+            improvement_added = True
+            break
+        elif flag_type == 'MISSING_GESTURE':
+            parts.append("One area to focus on: when you reference something specific, try pointing or gesturing toward it. This helps guide your audience's attention.")
+            improvement_added = True
+            break
+        elif flag_type == 'PACING_MISMATCH':
+            parts.append("One area to focus on: try varying your pace more - slow down for important points and speed up slightly for transitions.")
+            improvement_added = True
+            break
+
+    # If no flag-based improvement, use metrics
+    if not improvement_added:
+        if eye_contact < 80:
+            parts.append("One area to focus on: try to maintain even more consistent eye contact with the camera. It creates a stronger connection with your audience, even through a screen.")
+            improvement_added = True
+        elif filler_count > 3:
+            parts.append("One area to focus on: I noticed some filler words creeping in. Try embracing brief pauses instead - silence is actually a powerful tool that makes you sound more confident.")
+            improvement_added = True
+        elif fidgeting > 2:
+            parts.append("One area to focus on: try to channel your energy into purposeful gestures rather than nervous movements. Your hands can be great tools for emphasis!")
+            improvement_added = True
+        elif speaking_pace > 170:
+            parts.append("One area to focus on: you tend to speed up during key moments. Try taking a breath before important points to let them really land with your audience.")
+            improvement_added = True
+        elif speaking_pace < 130:
+            parts.append("One area to focus on: try adding more energy and variation to your delivery. A slightly faster pace during exciting parts can help keep your audience engaged.")
+            improvement_added = True
+
+    # Default improvement if nothing specific found
+    if not improvement_added:
+        parts.append("To take your presentation to the next level, focus on adding more vocal variety - varying your tone and emphasis can make your key points even more memorable.")
+
+    # ALWAYS add a practice technique at the end
+    if filler_count > 3:
+        parts.append("Here's a technique to practice: record yourself speaking for two minutes on any topic. Every time you catch yourself about to say 'um' or 'uh', pause and take a breath instead. With repetition, this becomes natural.")
+    elif eye_contact < 80:
+        parts.append("Here's a technique to practice: try the 'triangle method' - look at your camera, then briefly glance to the left, then right, creating a natural gaze pattern. Practice this while reading aloud until it feels natural.")
+    elif fidgeting > 2:
+        parts.append("Here's a technique to practice: before your next presentation, try 'power posing' for two minutes - stand tall with hands on hips. This reduces cortisol and helps calm nervous energy.")
+    elif speaking_pace > 170 or speaking_pace < 130:
+        parts.append("Here's a technique to practice: read a paragraph aloud at three different speeds - slow, medium, and fast. Record yourself and listen back to find the pace that sounds most natural and engaging.")
+    else:
+        parts.append("Here's a technique to practice: rehearse your presentation while recording yourself, then watch it back with the sound off. This helps you notice body language habits you might not be aware of.")
 
     return " ".join(parts)
 

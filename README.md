@@ -34,19 +34,19 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 ```
 ┌─────────────────┐
 │   Vite + React  │  ← Frontend (TypeScript + TailwindCSS)
-│  Local Dev      │
+│  localhost:3000 │
 └────────┬────────┘
          │ REST API
 ┌────────▼────────┐
-│    FastAPI      │  ← Backend (Python)
-│  Local Server   │
+│    FastAPI      │  ← Backend (Python, async)
+│  localhost:8000 │
 └────────┬────────┘
-         │
+         │ Parallel Processing
     ┌────┼─────────────────┐
     ▼    ▼                 ▼
 ┌───────┐ ┌──────────┐ ┌─────────┐
 │Twelve │ │ Deepgram │ │ Gemini  │
-│ Labs  │ │  (Audio) │ │ (Brain) │
+│ Labs  │ │  (Audio) │ │ (Coach) │
 │(Video)│ └──────────┘ └─────────┘
 └───────┘
 ```
@@ -56,70 +56,107 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 **Frontend**
 - Vite 6+ with React 18 - Build tool and UI framework
 - TypeScript - Type safety
-- TailwindCSS v4 - Glassmorphic UI
+- TailwindCSS v4 - Glassmorphic dark theme UI
 - shadcn/ui - Pre-built Radix UI components
 - Lucide React - Icon system
 
 **Backend**
-- FastAPI - Python async web framework
-- FFmpeg - Video frame extraction
-- Pydantic - Data validation
+- FastAPI - Python async web framework with CORS
+- Async background tasks - Non-blocking video processing
+- In-memory caching - Dict-based storage (no database)
+- Pydantic - Request/response validation with camelCase output
 
-**AI Services**
-- **TwelveLabs** - Semantic video search (body language analysis)
-- **Deepgram** - Real-time speech transcription
-- **Gemini 1.5 Pro** - Multimodal synthesis & dissonance detection
+**AI Services (All Integrated ✅)**
+- **TwelveLabs** - Video indexing + semantic analysis (Pegasus 1.2 model)
+- **Deepgram** - Audio transcription with filler word detection
+- **Gemini 1.5 Pro** - Natural language coaching report generation
 
 ---
 
-## 🎯 Key Features
+## 🎯 Key Features (All Implemented ✅)
 
 ### 1. Visual-Verbal Dissonance Detection
-Our unique AI analyzes three dimensions simultaneously:
-- **Speech Content** (what you say)
-- **Body Language** (how you look)
-- **Slide Pacing** (what you show)
+Our AI pipeline analyzes video in parallel:
+- **TwelveLabs**: Eye contact, fidgeting, gestures, facial expressions
+- **Deepgram**: Speech transcription, filler words ("um", "uh", "like"), speaking pace
+- **Gemini**: Synthesizes all data into natural coaching advice
 
-### 2. Actionable Coaching
-Not just metrics — we tell you exactly how to improve:
-> "You said 'passionate' at 2:15 but your face showed anxiety. **Fix:** Smile with teeth and lean forward 10° when expressing enthusiasm."
+### 2. Three Types of Dissonance Flags
+| Type | Description | Example |
+|------|-------------|---------|
+| `EMOTIONAL_MISMATCH` | Positive words with anxious/flat expression | Saying "thrilled" while frowning |
+| `MISSING_GESTURE` | Deictic phrases without pointing | "Look at this" without gesturing |
+| `PACING_MISMATCH` | Speaking too fast/slow for content | Rushing through dense material |
 
-### 3. Interactive Timeline
-Color-coded heatmap showing exactly when dissonance occurs. Click any moment to jump to that timestamp.
+### 3. Interactive Results Dashboard
+- **Video Player** with custom controls and seek functionality
+- **Dissonance Timeline** - Click severity markers to jump to timestamps
+- **Coaching Cards** - Dismissible insights with "Jump to Moment" buttons
+- **Transcript Panel** - Word-level transcript with filler word highlighting
+- **Gemini Summary Card** - Natural language coaching advice
 
 ### 4. Coherence Score (0-100)
-Weighted algorithm combining:
-- Eye contact percentage (30%)
-- Filler word count (25%)
-- Fidgeting frequency (20%)
-- Speaking pace (15%)
-- Dissonance penalties (10%)
+Weighted algorithm:
+- Eye contact percentage: 30%
+- Filler word count: 25% (fewer = better)
+- Fidgeting frequency: 20% (fewer = better)
+- Speaking pace: 15% (140-160 WPM optimal)
+- Dissonance penalties: -10 per HIGH, -5 per MEDIUM severity flag
+
+**Score Tiers:**
+- 76-100: "Strong"
+- 51-75: "Good Start"
+- 0-50: "Needs Work"
 
 ---
 
-## 📊 Sample Analysis
+## 📡 API Endpoints (All Implemented ✅)
 
-**Input:** 3-minute MBA pitch video
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) |
+| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) |
+| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results |
+| `GET /api/videos/{id}/stream` | GET | Stream video file for playback |
+| `GET /api/videos/samples/{id}` | GET | Load pre-cached sample video |
+| `GET /health` | GET | Health check endpoint |
 
-**Output:**
+### Sample API Response
+
 ```json
 {
+  "videoId": "abc-123",
+  "videoUrl": "/api/videos/abc-123/stream",
+  "durationSeconds": 183.0,
   "coherenceScore": 67,
+  "scoreTier": "Good Start",
   "metrics": {
-    "eyeContact": 85,
-    "fillerWords": 8,
-    "fidgeting": 6,
-    "speakingPace": 142
+    "eyeContact": 62,
+    "fillerWords": 12,
+    "fidgeting": 8,
+    "speakingPace": 156,
+    "speakingPaceTarget": "140-160"
   },
   "dissonanceFlags": [
     {
-      "timestamp": 15.5,
+      "id": "flag-1",
+      "timestamp": 45.2,
+      "endTimestamp": 48.0,
       "type": "EMOTIONAL_MISMATCH",
       "severity": "HIGH",
-      "description": "Said 'thrilled' with anxious expression",
-      "coaching": "Smile with teeth, lean forward 10°"
+      "description": "Said 'thrilled to present' but facial expression showed anxiety",
+      "coaching": "Practice saying this line while smiling in a mirror.",
+      "visualEvidence": "TwelveLabs: 'person looking anxious' at 0:43-0:48",
+      "verbalEvidence": "Deepgram: 'thrilled' (positive sentiment)"
     }
-  ]
+  ],
+  "transcript": [
+    {"text": "Hello everyone, today I'm thrilled...", "start": 0.5, "end": 3.2}
+  ],
+  "geminiReport": {
+    "headline": "Solid foundation to build on",
+    "coachingAdvice": "Great job on your presentation! You did a wonderful job maintaining eye contact..."
+  }
 }
 ```
 
@@ -130,7 +167,6 @@ Weighted algorithm combining:
 ### Prerequisites
 - Node.js 18+
 - Python 3.10+
-- FFmpeg installed
 - API keys for TwelveLabs, Deepgram, Gemini
 
 ### Frontend Setup
@@ -145,30 +181,26 @@ npm run dev
 ```bash
 # From repository root
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+.\venv\Scripts\Activate.ps1   # Windows PowerShell
+# or: source venv/bin/activate  # Linux/Mac
+
 pip install -r requirements.txt
 
-# Create .env file in repository root
-# Add API keys: TWELVELABS_API_KEY=your_key_here
+# Create .env file in repository root with:
+# TWELVELABS_API_KEY=your_key
+# DEEPGRAM_API_KEY=your_key
+# GEMINI_API_KEY=your_key
 
 # Run backend server
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
-# Or use the provided script:
-# Windows: .\run_backend.ps1
-# Linux/Mac: ./run_backend.sh
-# Runs at http://localhost:8000
 ```
 
-### Environment Variables
+### Environment Variables (`.env` in repository root)
 
-**Frontend** (`frontend/lib/config.ts`)
-- API base URL configured in `frontend/lib/config.ts` (defaults to `http://localhost:8000`)
-
-**Backend** (`.env` in repository root)
-```
-TWELVELABS_API_KEY=your_key_here
-DEEPGRAM_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
+```env
+TWELVELABS_API_KEY=your_twelvelabs_key
+DEEPGRAM_API_KEY=your_deepgram_key
+GEMINI_API_KEY=your_gemini_key
 ```
 
 ---
@@ -177,147 +209,128 @@ GEMINI_API_KEY=your_key_here
 
 ```
 coherence/
-├── frontend/
-│   ├── main.tsx            # React entry point
-│   ├── App.tsx             # Root component with routing
+├── index.html              # Vite entry point
+├── package.json            # Frontend dependencies
+├── requirements.txt        # Python dependencies
+├── vite.config.ts          # Vite configuration
+├── tsconfig.json           # TypeScript configuration
+│
+├── frontend/               # React frontend
+│   ├── main.tsx            # Entry point
+│   ├── App.tsx             # Root component with navigation
+│   ├── index.css           # TailwindCSS styles
 │   ├── components/
 │   │   ├── ui/             # shadcn/ui components
-│   │   ├── upload/         # Upload page components
-│   │   │   ├── UploadPage.tsx
-│   │   │   ├── ProcessingView.tsx
-│   │   │   └── UploadZone.tsx
-│   │   ├── results/        # Results dashboard components
-│   │   │   ├── ResultsPage.tsx
-│   │   │   ├── VideoPlayer.tsx
-│   │   │   ├── CoachingCard.tsx
-│   │   │   ├── ScoreBadge.tsx
-│   │   │   ├── DissonanceTimeline.tsx
-│   │   │   └── MetricsRow.tsx
+│   │   ├── upload/
+│   │   │   ├── UploadPage.tsx       # Main upload page
+│   │   │   ├── UploadZone.tsx       # Drag-and-drop area
+│   │   │   ├── ProcessingView.tsx   # Status polling UI
+│   │   │   └── SampleVideos.tsx     # Pre-cached samples
+│   │   ├── results/
+│   │   │   ├── ResultsPage.tsx      # Main results dashboard
+│   │   │   ├── VideoPlayer.tsx      # Custom video player
+│   │   │   ├── ScoreBadge.tsx       # Circular score indicator
+│   │   │   ├── CompactMetrics.tsx   # Metrics bar
+│   │   │   ├── CoachingCard.tsx     # Dismissible coaching cards
+│   │   │   ├── DissonanceTimeline.tsx  # Interactive timeline
+│   │   │   ├── TranscriptPanel.tsx  # Word-level transcript
+│   │   │   └── GeminiSummaryCard.tsx   # AI coaching summary
 │   │   └── landing/        # Landing page components
 │   ├── lib/
-│   │   ├── config.ts       # API configuration
-│   │   ├── mock-data.ts    # Mock data for development
-│   │   └── services/      # API service layer (if needed)
+│   │   ├── api.ts          # API service layer
+│   │   └── mock-data.ts    # Mock data for fallback
 │   └── types/
-│       └── index.ts        # TypeScript interfaces
+│       └── api.ts          # TypeScript API types
+│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py         # FastAPI entry point
+│   │   ├── main.py              # FastAPI app + CORS
 │   │   ├── routers/
-│   │   │   └── videos.py   # Video API endpoints
+│   │   │   └── videos.py        # API endpoints
 │   │   ├── services/
-│   │   │   └── video_service.py  # Video processing logic
+│   │   │   ├── video_service.py    # Processing orchestration
+│   │   │   ├── deepgram_service.py # Deepgram wrapper
+│   │   │   ├── twelvelabs_service.py  # TwelveLabs wrapper
+│   │   │   └── gemini_service.py   # Gemini wrapper
 │   │   └── models/
-│   │       └── schemas.py  # Pydantic schemas
+│   │       └── schemas.py       # Pydantic schemas
+│   ├── deepgram/
+│   │   ├── deepgram_client.py   # SDK client
+│   │   └── transcription.py     # Audio transcription
 │   ├── twelvelabs/
-│   │   ├── twelvelabs_client.py  # TwelveLabs client
+│   │   ├── twelvelabs_client.py # SDK client
 │   │   ├── indexing.py          # Video indexing
-│   │   └── analysis.py          # Video analysis
-│   └── data/
-│       └── videos/         # Uploaded video storage
+│   │   └── analysis.py          # Semantic analysis
+│   ├── gemini/
+│   │   ├── gemini_client.py     # SDK client
+│   │   └── synthesis.py         # Dissonance detection
+│   ├── cli.py                   # CLI testing tool
+│   └── data/videos/             # Uploaded video storage
+│
 ├── documentation/
-│   ├── ROADMAP.md          # Build plan and milestones
-│   └── FIGMA_GUIDELINES.md # Frontend generation spec
+│   ├── ROADMAP.md          # Build plan
+│   └── FIGMA_GUIDELINES.md # Frontend spec
 ├── AGENTS.md               # AI assistant guidelines
-├── CLAUDE.md               # Backend development guidelines
+├── CLAUDE.md               # Backend guidelines
 └── README.md
 ```
+
+---
+
+## 🔄 Processing Pipeline
+
+```
+Upload Video ─┬─► Deepgram (5-10s)    ─┬─► Merge Results ─► Gemini Report ─► Store
+              │   └─► Transcript       │   └─► Score Calculation
+              │   └─► Filler words     │
+              │   └─► Speaking pace    │
+              │                        │
+              └─► TwelveLabs (20-40s) ─┘
+                  └─► Video indexing
+                  └─► Semantic analysis
+                  └─► Dissonance flags
+```
+
+**Processing Time:** ~45-60 seconds for 2-minute video
 
 ---
 
 ## 🎪 Demo Preparation
 
 ### Pre-Demo Checklist
+- [x] All three AI services integrated and tested
 - [ ] Index 3 sample videos in TwelveLabs
 - [ ] Cache analysis results for instant loading
-- [ ] Test offline mode (cached fallback)
+- [ ] Test with WiFi disabled (mock fallback works)
 - [ ] Verify all API keys are active
-- [ ] Rehearse 3-minute pitch 4+ times
-- [ ] Test local file upload works smoothly
-- [ ] Backup laptop with identical local setup
+- [ ] Rehearse demo 4+ times
 
 ### Demo Flow (3 minutes)
 1. **[0:00-0:30]** Hook - Explain dissonance problem
-2. **[0:30-1:30]** Show pre-analyzed sample with red flags
-3. **[1:30-2:30]** Live demo - upload & analyze local video
+2. **[0:30-1:30]** Show pre-analyzed sample with dissonance flags
+3. **[1:30-2:30]** Live demo - upload & analyze new video
 4. **[2:30-3:00]** Close - Market size & CTA
-
----
-
-## 🧪 Testing
-
-### Run Frontend Tests
-```bash
-cd frontend
-npm test
-```
-
-### Run Backend Tests
-```bash
-cd backend
-pytest tests/ -v
-```
-
-### Test Coverage Focus
-- Upload → Processing → Results flow (critical path)
-- API endpoint response shapes
-- Dissonance detection logic
-- Coherence score calculation
-
----
-
-## 🎯 Target Users
-
-1. **College Students** (Primary)
-   - Final presentations cause 95% anxiety
-   - Need objective feedback before high-stakes demos
-   - Budget-conscious ($9/month tier)
-
-2. **MBA Students** (Secondary)
-   - Pitch competitions with real money at stake
-   - Want competitive edge in delivery
-   - Willing to pay for premium features
-
-3. **Corporate Sales** (Tertiary)
-   - Training teams for client demos
-   - B2B sales where delivery = deal closure
-   - Enterprise contracts ($99/seat)
-
----
-
-## 💰 Business Model (Post-Hackathon)
-
-### Freemium SaaS
-- **Free Tier:** 1 video/month, basic metrics
-- **Student ($9/mo):** 10 videos/month, full coaching
-- **Professional ($29/mo):** Unlimited videos, slide analysis
-- **Enterprise ($99/seat):** Team analytics, integrations
-
-### Market Opportunity
-- **TAM:** 50M students + professionals presenting annually
-- **SAM:** 10M active presentation tool users
-- **SOM:** 500K early adopters (Year 1 target)
-
----
-
-## 📚 Documentation
-
-- [Frontend Guidelines](documentation/FIGMA_GUIDELINES.md) - Frontend generation and integration spec
-- [Backend Guidelines](CLAUDE.md) - Backend development and API contracts
-- [Agent Guidelines](AGENTS.md) - AI assistant guidelines and integration patterns
-- [Roadmap](documentation/ROADMAP.md) - Build plan, milestones, and progress tracking
 
 ---
 
 ## 🐛 Known Limitations (Hackathon Scope)
 
 - ❌ No user authentication
-- ❌ No video editing/trimming
 - ❌ No database persistence (in-memory cache only)
 - ❌ No mobile app (web-only, desktop-first design)
-- ❌ No real-time streaming analysis
-- ❌ Processing limited to 5-minute videos (demo target: 2-3 minutes)
-- ⚠️ Real analysis pipeline pending (currently returns mock data from backend)
+- ❌ Processing limited to 5-minute videos
+- ❌ No video editing/trimming
+- ✅ All AI services integrated (TwelveLabs, Deepgram, Gemini)
+
+---
+
+## 📚 Documentation
+
+- [Roadmap](documentation/ROADMAP.md) - Build plan, milestones, and progress
+- [Frontend Guidelines](documentation/FIGMA_GUIDELINES.md) - Frontend generation spec
+- [Backend Guidelines](CLAUDE.md) - Backend development and API contracts
+- [Agent Guidelines](AGENTS.md) - AI assistant integration patterns
+- [Backend README](backend/README.md) - Module documentation and CLI tool
 
 ---
 

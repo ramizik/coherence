@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchResults, getVideoStreamUrl, VideoAnalysisError } from '../../lib/api';
 import { mockAnalysisResult, type AnalysisResult } from '../../lib/mock-data';
 import { CoachingCard } from './CoachingCard';
@@ -36,6 +36,8 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
+  const coachingScrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch analysis results from backend
   useEffect(() => {
@@ -94,6 +96,31 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
       })
       .finally(() => setIsLoading(false));
   };
+
+  // Handle scroll to detect when user reaches bottom of coaching insights
+  const handleCoachingScroll = useCallback(() => {
+    const container = coachingScrollRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Consider "at bottom" when within 20px of the end
+    const atBottom = scrollHeight - scrollTop - clientHeight < 20;
+    setIsScrolledToBottom(atBottom);
+  }, []);
+
+  // Attach scroll listener to coaching insights container
+  useEffect(() => {
+    const container = coachingScrollRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleCoachingScroll);
+    // Check initial state
+    handleCoachingScroll();
+
+    return () => {
+      container.removeEventListener('scroll', handleCoachingScroll);
+    };
+  }, [handleCoachingScroll, analysisResult]);
 
   // Loading state
   if (isLoading) {
@@ -276,7 +303,11 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
             {/* Scrollable container wrapper with fade effect */}
             <div className="relative" style={{ maxHeight: '690px' }}>
               {/* Scrollable content */}
-              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-20 h-full" style={{ maxHeight: '690px' }}>
+              <div
+                ref={coachingScrollRef}
+                className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-20 h-full"
+                style={{ maxHeight: '690px' }}
+              >
                 {activeFlags.length > 0 ? (
                   activeFlags.map((flag) => (
                     <CoachingCard
@@ -295,11 +326,12 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
                 )}
               </div>
 
-              {/* Gradient fade-out overlay */}
+              {/* Gradient fade-out overlay - hides when scrolled to bottom */}
               <div
-                className="absolute bottom-0 left-0 right-0 pointer-events-none"
+                className="absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-300"
                 style={{
                   height: '100px',
+                  opacity: isScrolledToBottom ? 0 : 1,
                   background: 'linear-gradient(to top, #0F172A 0%, #0F172A 20%, transparent 100%)',
                 }}
               />
