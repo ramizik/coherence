@@ -1,5 +1,7 @@
 """Deepgram transcription service with intelligent filler word detection.
 
+Compatible with Deepgram SDK v5.x
+
 Provides:
 - Full transcript with word-level timestamps
 - Two-tier filler word detection:
@@ -7,6 +9,16 @@ Provides:
   2. LLM-based contextual filler detection (like, you know, basically - only when used as fillers)
 - Speaking pace (WPM) calculation
 - Pause detection (gaps >2s between words)
+
+Output format matches the plan:
+{
+    "transcript": "Hello everyone, um, today I'm, uh, thrilled to present...",
+    "words": [
+        {"word": "Hello", "start": 0.5, "end": 0.8},
+        {"word": "um", "start": 1.2, "end": 1.4}
+    ],
+    "confidence": 0.94
+}
 """
 
 import asyncio
@@ -15,10 +27,10 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from anthropic import Anthropic
-from deepgram import PrerecordedOptions, FileSource
+from deepgram import DeepgramClient
 
 from backend.deepgram.deepgram_client import client
 
@@ -97,7 +109,18 @@ class TranscriptionResult:
     metrics: SpeechMetrics
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for JSON serialization and caching."""
+        """Convert to dictionary for JSON serialization and caching.
+
+        Output format matches the plan:
+        {
+            "transcript": "Hello everyone, um, today I'm, uh, thrilled to present...",
+            "words": [
+                {"word": "Hello", "start": 0.5, "end": 0.8},
+                {"word": "um", "start": 1.2, "end": 1.4}
+            ],
+            "confidence": 0.94
+        }
+        """
         return {
             "transcript": self.transcript,
             "words": [
@@ -105,13 +128,11 @@ class TranscriptionResult:
                     "word": w.word,
                     "start": w.start,
                     "end": w.end,
-                    "confidence": w.confidence,
-                    "is_filler": w.is_filler,
-                    "filler_type": w.filler_type.value if w.filler_type else None,
                 }
                 for w in self.words
             ],
             "confidence": self.confidence,
+            # Extended metrics beyond the basic plan format
             "metrics": {
                 "filler_analysis": {
                     "total_count": self.metrics.filler_analysis.total_count,
@@ -272,6 +293,7 @@ def _calculate_speaking_pace(
 ) -> int:
     """Calculate speaking pace in words per minute.
 
+    Formula: len(words) / (duration_minutes)
     Only counts content words (excludes fillers) for meaningful pace calculation.
     """
     if duration_seconds <= 0:
@@ -297,7 +319,10 @@ def _calculate_speaking_pace(
 
 
 def _detect_pauses(words: List[WordInfo]) -> List[PauseInfo]:
-    """Detect pauses longer than threshold between words."""
+    """Detect pauses longer than threshold between words.
+
+    Pause detection: Gaps >2s between words
+    """
     pauses = []
 
     for i in range(len(words) - 1):
@@ -327,7 +352,7 @@ async def transcribe_audio(
 ) -> TranscriptionResult:
     """Transcribe audio file and extract speech metrics.
 
-    API_CALL: Deepgram.listen.prerecorded()
+    API_CALL: Deepgram SDK v5.x - client.listen.rest.v("1").transcribe_file()
     API_CALL: Anthropic Claude (optional, for contextual filler detection)
 
     Args:
@@ -338,6 +363,16 @@ async def transcribe_audio(
 
     Returns:
         TranscriptionResult with transcript, word timestamps, and metrics
+
+    Output format matches the plan:
+    {
+        "transcript": "Hello everyone, um, today I'm, uh, thrilled to present...",
+        "words": [
+            {"word": "Hello", "start": 0.5, "end": 0.8},
+            {"word": "um", "start": 1.2, "end": 1.4}
+        ],
+        "confidence": 0.94
+    }
     """
     audio_path = Path(audio_path)
 
@@ -350,9 +385,13 @@ async def transcribe_audio(
     with open(audio_path, "rb") as audio_file:
         buffer_data = audio_file.read()
 
-    # Configure transcription options
-    # filler_words=True ensures Deepgram includes vocal disfluencies in transcript
-    options = PrerecordedOptions(
+    # Deepgram SDK v5.x API call
+    # Uses client.listen.v1.media.transcribe_file() with keyword arguments
+
+    # Call Deepgram API (SDK v5.x style)
+    response = await asyncio.to_thread(
+        client.listen.v1.media.transcribe_file,
+        request=buffer_data,
         model="nova-2",
         language=language,
         punctuate=True,
@@ -362,15 +401,7 @@ async def transcribe_audio(
         utterances=True,
     )
 
-    payload: FileSource = {"buffer": buffer_data}
-
-    # API_CALL: Deepgram transcription
-    response = await asyncio.to_thread(
-        client.listen.rest.v1.transcribe_file,
-        payload,
-        options,
-    )
-
+    # Access results from the response
     result = response.results
     if not result or not result.channels:
         raise ValueError("No transcription results returned from Deepgram")
@@ -382,7 +413,8 @@ async def transcribe_audio(
     alternative = channel.alternatives[0]
     transcript = alternative.transcript or ""
 
-    # Build word list
+    # Build word list matching the plan format:
+    # {"word": "Hello", "start": 0.5, "end": 0.8}
     words: List[WordInfo] = []
     for w in alternative.words or []:
         words.append(
@@ -397,18 +429,19 @@ async def transcribe_audio(
         )
 
     # Calculate confidence
-    confidence = alternative.confidence if hasattr(alternative, "confidence") else 0.0
+    confidence = getattr(alternative, "confidence", 0.0)
     if confidence == 0.0 and words:
         confidence = sum(w.confidence for w in words) / len(words)
 
-    # Get duration
+    # Get duration from metadata
     duration_seconds = 0.0
-    if hasattr(result, "metadata") and result.metadata:
-        duration_seconds = getattr(result.metadata, "duration", 0.0)
+    if hasattr(response, "metadata") and response.metadata:
+        duration_seconds = getattr(response.metadata, "duration", 0.0)
     elif words:
         duration_seconds = words[-1].end
 
     # === FILLER DETECTION (Two-tier approach) ===
+    # Filler word count: Count "um", "uh", "like", "you know"
 
     # Tier 1: Detect Deepgram's vocal disfluencies (always fillers)
     vocal_fillers = _detect_vocal_disfluencies(words)
@@ -436,7 +469,10 @@ async def transcribe_audio(
     )
 
     # Calculate other metrics
+    # Speaking pace (WPM): len(words) / (duration_minutes)
     speaking_pace = _calculate_speaking_pace(words, duration_seconds)
+
+    # Pause detection: Gaps >2s between words
     pauses = _detect_pauses(words)
     content_words = len([w for w in words if not w.is_filler])
 
@@ -489,13 +525,27 @@ async def transcribe_audio_with_cache(
     language: str = "en",
     use_llm_filler_detection: bool = True,
 ) -> TranscriptionResult:
-    """Transcribe audio and store results in cache."""
+    """Transcribe audio and store results in cache.
+
+    Store: cache[video_id]["deepgram_data"] = {...}
+
+    The cached data follows the plan format:
+    {
+        "transcript": "Hello everyone, um, today I'm, uh, thrilled to present...",
+        "words": [
+            {"word": "Hello", "start": 0.5, "end": 0.8},
+            {"word": "um", "start": 1.2, "end": 1.4}
+        ],
+        "confidence": 0.94
+    }
+    """
     result = await transcribe_audio(
         audio_path,
         language,
         use_llm_filler_detection=use_llm_filler_detection,
     )
 
+    # Store: cache[video_id]["deepgram_data"] = {...}
     cache[video_id] = cache.get(video_id, {})
     cache[video_id]["deepgram_data"] = result.to_dict()
 

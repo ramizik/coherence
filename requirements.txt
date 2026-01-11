@@ -7,7 +7,10 @@ python-multipart>=0.0.9
 twelvelabs>=1.0.0
 
 # Deepgram SDK (speech-to-text)
-deepgram-sdk>=3.0.0
+deepgram-sdk>=5.0.0
+
+# Anthropic SDK (for LLM-based filler detection)
+anthropic>=0.40.0
 
 # Environment variables
 python-dotenv>=1.0.0

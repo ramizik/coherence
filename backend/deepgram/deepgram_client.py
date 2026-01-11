@@ -17,4 +17,5 @@ if not api_key:
     )
 
 # Create and export the client instance
+# SDK v5.x uses keyword argument api_key=
 client = DeepgramClient(api_key=api_key)
