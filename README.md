@@ -20,10 +20,9 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 ❌ **Pacing Issues** - Showing dense slides too briefly for comprehension
 
 ---
-
 ## 🎥 Demo Video
 
-[![Coherence](https://img.youtube.com/vi/TbkoovSZkW0/0.jpg)](https://youtu.be/TbkoovSZkW0)
+[![Coherence](https://img.youtube.com/vi/0IcYJvMz0W4/0.jpg)](https://youtu.be/0IcYJvMz0W4)
 
 **Local Setup:** Run frontend and backend locally for development and testing
 
