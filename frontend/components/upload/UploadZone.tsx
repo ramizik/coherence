@@ -8,6 +8,7 @@ interface UploadZoneProps {
   selectedFile: File | null;
   onFileSelect: (file: File) => void;
   onAnalyze: () => void;
+  onSelectSample: (sampleId: string) => void;
   isUploading?: boolean;
   error?: string | null;
 }
@@ -23,7 +24,7 @@ interface UploadZoneProps {
  *
  * Validation: MP4/MOV, max 500MB, max 3 minutes
  */
-export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading = false, error: externalError }: UploadZoneProps) {
+export function UploadZone({ selectedFile, onFileSelect, onAnalyze, onSelectSample, isUploading = false, error: externalError }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,7 +197,7 @@ export function UploadZone({ selectedFile, onFileSelect, onAnalyze, isUploading 
       )}
 
       {/* Sample Videos Section */}
-      {!selectedFile && <SampleVideos />}
+      {!selectedFile && <SampleVideos onSelectSample={onSelectSample} />}
     </div>
   );
 }

@@ -33,9 +33,9 @@ else:
         import google.generativeai as genai
 
         genai.configure(api_key=api_key)
-        # Use Gemini 1.5 Pro for multimodal synthesis
-        client = genai.GenerativeModel("gemini-1.5-pro-latest")
-        logger.info("Gemini client initialized successfully with gemini-1.5-pro")
+        # Use Gemini 2.5 Flash for multimodal synthesis (fast and cost-effective)
+        client = genai.GenerativeModel("gemini-2.5-flash")
+        logger.info("Gemini client initialized successfully with gemini-2.5-flash")
     except Exception as e:
         logger.error(f"Failed to initialize Gemini client: {e}")
         client = None

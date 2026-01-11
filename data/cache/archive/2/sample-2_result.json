@@ -1,0 +1,1012 @@
+{
+  "videoId": "sample-2",
+  "videoUrl": "/api/videos/sample-2/stream",
+  "durationSeconds": 563.38574,
+  "coherenceScore": 38,
+  "scoreTier": "Needs Work",
+  "metrics": {
+    "eyeContact": 90,
+    "fillerWords": 84,
+    "fidgeting": 5,
+    "speakingPace": 143,
+    "speakingPaceTarget": "140-160"
+  },
+  "dissonanceFlags": [
+    {
+      "id": "flag-1",
+      "timestamp": 0.0,
+      "endTimestamp": 141.0,
+      "type": "PACING_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "Filler words such as 'um' and 'ah' are used frequently.",
+      "coaching": "Reduce filler words to enhance clarity and professionalism.",
+      "visualEvidence": "Speaker pauses and looks away while using filler words",
+      "verbalEvidence": "'um', 'ah'"
+    },
+    {
+      "id": "flag-2",
+      "timestamp": 0.0,
+      "endTimestamp": 141.0,
+      "type": "EMOTIONAL_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "Occasional glances down at notes break eye contact.",
+      "coaching": "Maintain consistent eye contact to build rapport with the audience.",
+      "visualEvidence": "Speaker looks down at notes",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-3",
+      "timestamp": 0.0,
+      "endTimestamp": 141.0,
+      "type": "EMOTIONAL_MISMATCH",
+      "severity": "LOW",
+      "description": "Adjusts hair and shifts weight slightly.",
+      "coaching": "Minimize fidgeting to appear more confident and professional.",
+      "visualEvidence": "Minor fidgeting",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-4",
+      "timestamp": 0.0,
+      "endTimestamp": 141.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "Gestures are used but could be more diverse.",
+      "coaching": "Use more varied gestures to keep the audience engaged.",
+      "visualEvidence": "Limited gesture variety",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-5",
+      "timestamp": 0.0,
+      "endTimestamp": 141.0,
+      "type": "PACING_MISMATCH",
+      "severity": "LOW",
+      "description": "Pace quickens slightly during complex explanations.",
+      "coaching": "Ensure pacing matches the complexity of the content.",
+      "visualEvidence": "Speaker's pace changes",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-6",
+      "timestamp": 423.0,
+      "endTimestamp": 563.0,
+      "type": "PACING_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "Long pauses that feel awkward.",
+      "coaching": "Maintain a consistent speaking pace to improve flow.",
+      "visualEvidence": "Long pauses",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-7",
+      "timestamp": 423.0,
+      "endTimestamp": 563.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "Missed opportunities to use gestures for emphasis.",
+      "coaching": "Use gestures to emphasize points and engage the audience.",
+      "visualEvidence": "Hands stay still during explanations",
+      "verbalEvidence": "N/A"
+    },
+    {
+      "id": "flag-8",
+      "timestamp": 423.0,
+      "endTimestamp": 563.0,
+      "type": "PACING_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "Filler words such as 'um' and 'like' are used frequently.",
+      "coaching": "Reduce filler words to enhance clarity and professionalism.",
+      "visualEvidence": "Speaker pauses and looks away while using filler words",
+      "verbalEvidence": "'um', 'like'"
+    }
+  ],
+  "timelineHeatmap": [
+    {
+      "timestamp": 0.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 0.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 0.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 0.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 0.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 423.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 423.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 423.0,
+      "severity": "MEDIUM"
+    }
+  ],
+  "strengths": [
+    "Strong eye contact with camera",
+    "Well-paced delivery"
+  ],
+  "priorities": [
+    "Reduce filler words (um, uh, like)",
+    "Match facial expressions to your words"
+  ],
+  "transcript": [
+    {
+      "text": "imagine 100,000 seat olympic stadium as a serving bowl now",
+      "start": 0.64,
+      "end": 5.38,
+      "confidence": 0.9
+    },
+    {
+      "text": "imagine that it filled up to the maximum with food",
+      "start": 5.52,
+      "end": 8.88,
+      "confidence": 0.9
+    },
+    {
+      "text": "there is tomatoes there is french fries there is burgers",
+      "start": 8.88,
+      "end": 11.86,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh finally imagine all of that food is being sent",
+      "start": 13.155,
+      "end": 16.515,
+      "confidence": 0.9
+    },
+    {
+      "text": "to the landfill unfortunately this situation is happening every day",
+      "start": 16.515,
+      "end": 21.154999,
+      "confidence": 0.9
+    },
+    {
+      "text": "in the united states and unfortunately it is this truth",
+      "start": 21.154999,
+      "end": 24.515,
+      "confidence": 0.9
+    },
+    {
+      "text": "is scary the food waste problem is the global however",
+      "start": 24.515,
+      "end": 29.199999,
+      "confidence": 0.9
+    },
+    {
+      "text": "let's take a closer look on the uh united states",
+      "start": 29.419998,
+      "end": 32.62,
+      "confidence": 0.9
+    },
+    {
+      "text": "example and their experience and the possible solutions for that",
+      "start": 32.62,
+      "end": 36.86,
+      "confidence": 0.9
+    },
+    {
+      "text": "problem uh according according to the united states department of",
+      "start": 36.86,
+      "end": 41.34,
+      "confidence": 0.9
+    },
+    {
+      "text": "agriculture more than 30% of the old food in the",
+      "start": 41.34,
+      "end": 46.434998,
+      "confidence": 0.9
+    },
+    {
+      "text": "united states ends up in the landfill while uh at",
+      "start": 46.434998,
+      "end": 50.835,
+      "confidence": 0.9
+    },
+    {
+      "text": "the at the uh at the same time more than",
+      "start": 50.835,
+      "end": 53.475,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh 40,000,000 people are experiencing the uh hungry hunger every",
+      "start": 53.475,
+      "end": 58.97,
+      "confidence": 0.9
+    },
+    {
+      "text": "day in the united states this pro the problem of",
+      "start": 58.97,
+      "end": 62.73,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh the problem of food waste affects everybody in the",
+      "start": 62.73,
+      "end": 66.09,
+      "confidence": 0.9
+    },
+    {
+      "text": "united states how uh not not specific community or group",
+      "start": 66.09,
+      "end": 69.575005,
+      "confidence": 0.9
+    },
+    {
+      "text": "of people however let's take a closer look to the",
+      "start": 69.575005,
+      "end": 72.535,
+      "confidence": 0.9
+    },
+    {
+      "text": "to the uh those communities which will be affected by",
+      "start": 72.535,
+      "end": 75.975006,
+      "confidence": 0.9
+    },
+    {
+      "text": "the this problem more than others for example we have",
+      "start": 75.975006,
+      "end": 79.735,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh we have people with the low we have families",
+      "start": 79.735,
+      "end": 82.235,
+      "confidence": 0.9
+    },
+    {
+      "text": "with lower income or who are who may be experiencing",
+      "start": 82.295,
+      "end": 85.56,
+      "confidence": 0.9
+    },
+    {
+      "text": "the problem with food and moreover of course we have",
+      "start": 85.619995,
+      "end": 89.14,
+      "confidence": 0.9
+    },
+    {
+      "text": "the uh we have homeless homeless people homeless population in",
+      "start": 89.14,
+      "end": 93.22,
+      "confidence": 0.9
+    },
+    {
+      "text": "in literally every country and every uh state in every",
+      "start": 93.22,
+      "end": 98.215004,
+      "confidence": 0.9
+    },
+    {
+      "text": "state here in united states those people are affected more",
+      "start": 98.215004,
+      "end": 103.095,
+      "confidence": 0.9
+    },
+    {
+      "text": "than others because they are facing problems with the uh",
+      "start": 103.095,
+      "end": 108.715004,
+      "confidence": 0.9
+    },
+    {
+      "text": "being nourished enough uh according to the research of nonprofit",
+      "start": 109.655,
+      "end": 115.35,
+      "confidence": 0.9
+    },
+    {
+      "text": "organization uh move for hunger uh the united states has",
+      "start": 115.490005,
+      "end": 119.81,
+      "confidence": 0.9
+    },
+    {
+      "text": "enough time united states has sufficient resources and we have",
+      "start": 119.81,
+      "end": 125.595,
+      "confidence": 0.9
+    },
+    {
+      "text": "science to deal with that problem uh the the next",
+      "start": 125.595,
+      "end": 131.675,
+      "confidence": 0.9
+    },
+    {
+      "text": "the next thing to mention is that the uh the",
+      "start": 131.675,
+      "end": 135.435,
+      "confidence": 0.9
+    },
+    {
+      "text": "problem of uh food waste also represents a great waste",
+      "start": 135.435,
+      "end": 141.34,
+      "confidence": 0.9
+    },
+    {
+      "text": "of fresh water and groundwater resources every day uh for",
+      "start": 141.34,
+      "end": 146.14,
+      "confidence": 0.9
+    },
+    {
+      "text": "example farmers and people uh who produce the food right",
+      "start": 146.14,
+      "end": 150.95999,
+      "confidence": 0.9
+    },
+    {
+      "text": "they usually use the of course they usually uh they",
+      "start": 151.02,
+      "end": 153.80501,
+      "confidence": 0.9
+    },
+    {
+      "text": "they use the food uh they use the water for",
+      "start": 153.80501,
+      "end": 156.705,
+      "confidence": 0.9
+    },
+    {
+      "text": "creating a food but however if that food will be",
+      "start": 157.24501,
+      "end": 160.76501,
+      "confidence": 0.9
+    },
+    {
+      "text": "not used and at the uh at the end it",
+      "start": 160.76501,
+      "end": 163.005,
+      "confidence": 0.9
+    },
+    {
+      "text": "will be thrown to the landfill that means that we",
+      "start": 163.005,
+      "end": 166.205,
+      "confidence": 0.9
+    },
+    {
+      "text": "spend our water right right and uh of course there",
+      "start": 166.205,
+      "end": 170.5,
+      "confidence": 0.9
+    },
+    {
+      "text": "are many ways of using the water that we need",
+      "start": 170.5,
+      "end": 172.98,
+      "confidence": 0.9
+    },
+    {
+      "text": "to for example as we all know there are many",
+      "start": 172.98,
+      "end": 175.78,
+      "confidence": 0.9
+    },
+    {
+      "text": "regions so regions in the entire uh in the entire",
+      "start": 175.78,
+      "end": 179.7,
+      "confidence": 0.9
+    },
+    {
+      "text": "world where people are still facing the problem with uh",
+      "start": 179.7,
+      "end": 183.38,
+      "confidence": 0.9
+    },
+    {
+      "text": "not enough food uh not enough water provided for them",
+      "start": 183.38,
+      "end": 187.375,
+      "confidence": 0.9
+    },
+    {
+      "text": "so uh those we can use that uh use the",
+      "start": 187.435,
+      "end": 191.35501,
+      "confidence": 0.9
+    },
+    {
+      "text": "water that uh will be not used on the food",
+      "start": 191.35501,
+      "end": 194.095,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh to donate uh to donate it to the to",
+      "start": 194.155,
+      "end": 197.435,
+      "confidence": 0.9
+    },
+    {
+      "text": "those who needs it right right and uh let let",
+      "start": 197.435,
+      "end": 201.73,
+      "confidence": 0.9
+    },
+    {
+      "text": "let's let's take a look uh how are we going",
+      "start": 201.81,
+      "end": 204.77,
+      "confidence": 0.9
+    },
+    {
+      "text": "to do that right we need to to we need",
+      "start": 204.77,
+      "end": 206.93,
+      "confidence": 0.9
+    },
+    {
+      "text": "to create a plan to deal with that problem as",
+      "start": 206.93,
+      "end": 210.45,
+      "confidence": 0.9
+    },
+    {
+      "text": "i said before the united states has enough resources and",
+      "start": 210.45,
+      "end": 214.34834,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh uh and power to fix the problem right now",
+      "start": 214.34834,
+      "end": 218.235,
+      "confidence": 0.9
+    },
+    {
+      "text": "thus the key uh the key of to solution are",
+      "start": 218.85501,
+      "end": 222.21501,
+      "confidence": 0.9
+    },
+    {
+      "text": "our actions first and foremost uh we need to provide",
+      "start": 222.21501,
+      "end": 227.115,
+      "confidence": 0.9
+    },
+    {
+      "text": "more information to public we need to uh make more",
+      "start": 227.175,
+      "end": 231.07,
+      "confidence": 0.9
+    },
+    {
+      "text": "people aware of that problem and we need to uh",
+      "start": 231.07,
+      "end": 234.75,
+      "confidence": 0.9
+    },
+    {
+      "text": "we need to specify the real problem of food uh",
+      "start": 234.75,
+      "end": 238.37001,
+      "confidence": 0.9
+    },
+    {
+      "text": "of food waste in the united states to the public",
+      "start": 238.43001,
+      "end": 241.57,
+      "confidence": 0.9
+    },
+    {
+      "text": "one significant thing here is that everyone and everybody can",
+      "start": 243.71501,
+      "end": 248.43501,
+      "confidence": 0.9
+    },
+    {
+      "text": "play a significant role in fighting this problem for example",
+      "start": 248.43501,
+      "end": 253.015,
+      "confidence": 0.9
+    },
+    {
+      "text": "let's compare that problem to trash recycle uh as we",
+      "start": 253.63501,
+      "end": 256.98,
+      "confidence": 0.9
+    },
+    {
+      "text": "all know for last decades uh government organizations and structures",
+      "start": 256.98,
+      "end": 261.14,
+      "confidence": 0.9
+    },
+    {
+      "text": "here in united states were playing a big and significant",
+      "start": 261.14,
+      "end": 264.42,
+      "confidence": 0.9
+    },
+    {
+      "text": "role in order to make people and to inform people",
+      "start": 264.42,
+      "end": 268.02002,
+      "confidence": 0.9
+    },
+    {
+      "text": "why is it it so important to recycle your trash",
+      "start": 268.02002,
+      "end": 271.86502,
+      "confidence": 0.9
+    },
+    {
+      "text": "and to uh to to to spread the trash in",
+      "start": 271.86502,
+      "end": 275.625,
+      "confidence": 0.9
+    },
+    {
+      "text": "in your house right so as we see that worked",
+      "start": 275.625,
+      "end": 279.08502,
+      "confidence": 0.9
+    },
+    {
+      "text": "and uh as soon as government plays a role and",
+      "start": 279.14502,
+      "end": 282.44998,
+      "confidence": 0.9
+    },
+    {
+      "text": "as soon as government gives more and provides more information",
+      "start": 282.44998,
+      "end": 285.88998,
+      "confidence": 0.9
+    },
+    {
+      "text": "to the public more people will help and more people",
+      "start": 285.88998,
+      "end": 289.83,
+      "confidence": 0.9
+    },
+    {
+      "text": "will be acting in order to fix the problem um",
+      "start": 290.05,
+      "end": 294.78998,
+      "confidence": 0.9
+    },
+    {
+      "text": "then obviously we need the law right we need the",
+      "start": 294.93,
+      "end": 298.095,
+      "confidence": 0.9
+    },
+    {
+      "text": "regulations and government uh actions in in in this problem",
+      "start": 298.095,
+      "end": 302.115,
+      "confidence": 0.9
+    },
+    {
+      "text": "i think that we need to start on regional uh",
+      "start": 302.81497,
+      "end": 305.29498,
+      "confidence": 0.9
+    },
+    {
+      "text": "on regional level uh in some in some places here",
+      "start": 305.29498,
+      "end": 309.1,
+      "confidence": 0.9
+    },
+    {
+      "text": "in the united states by creating new regulations and passing",
+      "start": 309.1,
+      "end": 312.86,
+      "confidence": 0.9
+    },
+    {
+      "text": "the laws by local state governments then we can expand",
+      "start": 312.86,
+      "end": 317.6,
+      "confidence": 0.9
+    },
+    {
+      "text": "our rules and ideas uh sorry ideas and regulations while",
+      "start": 317.74,
+      "end": 322.80502,
+      "confidence": 0.9
+    },
+    {
+      "text": "monitoring the result in the uh in the con sorry",
+      "start": 322.80502,
+      "end": 326.64502,
+      "confidence": 0.9
+    },
+    {
+      "text": "in the region uh why we need to do that",
+      "start": 326.64502,
+      "end": 330.48502,
+      "confidence": 0.9
+    },
+    {
+      "text": "first of all when we're gonna uh when we're gonna",
+      "start": 330.48502,
+      "end": 333.29,
+      "confidence": 0.9
+    },
+    {
+      "text": "spend our resources on fixing that problem we need to",
+      "start": 333.29,
+      "end": 336.89,
+      "confidence": 0.9
+    },
+    {
+      "text": "see the results we need to see the statistics is",
+      "start": 336.89,
+      "end": 340.17,
+      "confidence": 0.9
+    },
+    {
+      "text": "it really helpful will it help somehow on the other",
+      "start": 340.17,
+      "end": 343.29,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh in the other place or not and um yes",
+      "start": 343.29,
+      "end": 349.305,
+      "confidence": 0.9
+    },
+    {
+      "text": "did you know that uh according to natural resource defense",
+      "start": 349.605,
+      "end": 352.885,
+      "confidence": 0.9
+    },
+    {
+      "text": "council some regions some regions are working on fighting the",
+      "start": 352.885,
+      "end": 357.365,
+      "confidence": 0.9
+    },
+    {
+      "text": "issue however government should take the food waste more seriously",
+      "start": 357.365,
+      "end": 362.4,
+      "confidence": 0.9
+    },
+    {
+      "text": "because the reason why this problem haven't been solved yet",
+      "start": 362.86002,
+      "end": 366.86002,
+      "confidence": 0.9
+    },
+    {
+      "text": "is because of ignorance of the problem at the end",
+      "start": 366.86002,
+      "end": 370.38,
+      "confidence": 0.9
+    },
+    {
+      "text": "everything depends on the government and the government and the",
+      "start": 370.38,
+      "end": 373.205,
+      "confidence": 0.9
+    },
+    {
+      "text": "institutional organizations should provide more information and should provide more",
+      "start": 373.205,
+      "end": 377.685,
+      "confidence": 0.9
+    },
+    {
+      "text": "laws so people will listen to them uh let's take",
+      "start": 377.685,
+      "end": 382.085,
+      "confidence": 0.9
+    },
+    {
+      "text": "a look on the advent uh advantages sorry so if",
+      "start": 382.085,
+      "end": 385.525,
+      "confidence": 0.9
+    },
+    {
+      "text": "you fix the problem what will how it will help",
+      "start": 385.525,
+      "end": 387.99,
+      "confidence": 0.9
+    },
+    {
+      "text": "us in future first of all it's clear it's pretty",
+      "start": 387.99,
+      "end": 391.03,
+      "confidence": 0.9
+    },
+    {
+      "text": "clear for all of us that if we uh if",
+      "start": 391.03,
+      "end": 393.34998,
+      "confidence": 0.9
+    },
+    {
+      "text": "we solve the food waste problem tomorrow or today tomorrow",
+      "start": 393.34998,
+      "end": 397.12997,
+      "confidence": 0.9
+    },
+    {
+      "text": "we will secure not only ourselves but entire uh but",
+      "start": 397.27,
+      "end": 401.14502,
+      "confidence": 0.9
+    },
+    {
+      "text": "entire corporation of world why is it happening success on",
+      "start": 401.14502,
+      "end": 408.905,
+      "confidence": 0.9
+    },
+    {
+      "text": "the nation uh level tens other countries to make their",
+      "start": 408.905,
+      "end": 413.225,
+      "confidence": 0.9
+    },
+    {
+      "text": "move what does it what does it mean uh by",
+      "start": 413.225,
+      "end": 415.71,
+      "confidence": 0.9
+    },
+    {
+      "text": "this word i want to say that if other countries",
+      "start": 415.71,
+      "end": 418.75,
+      "confidence": 0.9
+    },
+    {
+      "text": "and if other regions of the country will see that",
+      "start": 418.75,
+      "end": 421.71,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh somewhere uh for example in california or in new",
+      "start": 421.71,
+      "end": 425.94998,
+      "confidence": 0.9
+    },
+    {
+      "text": "york people start to fix the problem of the uh",
+      "start": 425.94998,
+      "end": 430.325,
+      "confidence": 0.9
+    },
+    {
+      "text": "food waste and it they them uh they will see",
+      "start": 430.325,
+      "end": 433.685,
+      "confidence": 0.9
+    },
+    {
+      "text": "that it really works and our plan really works the",
+      "start": 433.685,
+      "end": 437.445,
+      "confidence": 0.9
+    },
+    {
+      "text": "other countries will join the uh join us and will",
+      "start": 437.445,
+      "end": 441.125,
+      "confidence": 0.9
+    },
+    {
+      "text": "help us to prevent the uh the the the the",
+      "start": 441.125,
+      "end": 444.86,
+      "confidence": 0.9
+    },
+    {
+      "text": "problem in future sorry for uh for example we can",
+      "start": 444.86,
+      "end": 449.18,
+      "confidence": 0.9
+    },
+    {
+      "text": "give as i said before we can give this food",
+      "start": 449.18,
+      "end": 451.9,
+      "confidence": 0.9
+    },
+    {
+      "text": "to home this population right we can we can uh",
+      "start": 451.9,
+      "end": 454.69998,
+      "confidence": 0.9
+    },
+    {
+      "text": "everyone can take their food from the refrigerator which they",
+      "start": 454.69998,
+      "end": 459.885,
+      "confidence": 0.9
+    },
+    {
+      "text": "are not want uh which they want don't want to",
+      "start": 459.885,
+      "end": 462.285,
+      "confidence": 0.9
+    },
+    {
+      "text": "eat in future and donate this to the homeless population",
+      "start": 462.285,
+      "end": 466.52502,
+      "confidence": 0.9
+    },
+    {
+      "text": "and to those who really needs it right now uh",
+      "start": 466.52502,
+      "end": 470.42,
+      "confidence": 0.9
+    },
+    {
+      "text": "as a um according to environmental protection agency everybody can",
+      "start": 470.42,
+      "end": 476.18002,
+      "confidence": 0.9
+    },
+    {
+      "text": "help in that and there are many ways to help",
+      "start": 476.18002,
+      "end": 479.30002,
+      "confidence": 0.9
+    },
+    {
+      "text": "in uh to help instead of throwing the food to",
+      "start": 479.30002,
+      "end": 482.42,
+      "confidence": 0.9
+    },
+    {
+      "text": "the garbage bin as a result of more food being",
+      "start": 482.42,
+      "end": 487.685,
+      "confidence": 0.9
+    },
+    {
+      "text": "available to consumer the people uh people will be healthier",
+      "start": 487.685,
+      "end": 492.185,
+      "confidence": 0.9
+    },
+    {
+      "text": "and more nourished because of the food available on the",
+      "start": 492.405,
+      "end": 495.685,
+      "confidence": 0.9
+    },
+    {
+      "text": "market and because of the saved uh resources or as",
+      "start": 495.685,
+      "end": 501.48,
+      "confidence": 0.9
+    },
+    {
+      "text": "i said before we can donate the food to those",
+      "start": 501.48,
+      "end": 504.2,
+      "confidence": 0.9
+    },
+    {
+      "text": "who really needs it right for example uh africa there",
+      "start": 504.2,
+      "end": 508.28,
+      "confidence": 0.9
+    },
+    {
+      "text": "are many regions uh on on the entire world where",
+      "start": 508.28,
+      "end": 511.64,
+      "confidence": 0.9
+    },
+    {
+      "text": "people still facing the problem with uh being undernourished and",
+      "start": 511.64,
+      "end": 517.60504,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh in my conclusion uh i want to say that",
+      "start": 517.60504,
+      "end": 520.185,
+      "confidence": 0.9
+    },
+    {
+      "text": "the food is our all it's obvious we can't live",
+      "start": 520.805,
+      "end": 524.565,
+      "confidence": 0.9
+    },
+    {
+      "text": "without food but the problem is that that there are",
+      "start": 524.565,
+      "end": 527.60504,
+      "confidence": 0.9
+    },
+    {
+      "text": "too many people right now living in the world we",
+      "start": 527.60504,
+      "end": 530.67,
+      "confidence": 0.9
+    },
+    {
+      "text": "need to think uh we need to think about all",
+      "start": 530.67,
+      "end": 533.63,
+      "confidence": 0.9
+    },
+    {
+      "text": "of us and food is our key to healthy future",
+      "start": 533.63,
+      "end": 537.89,
+      "confidence": 0.9
+    },
+    {
+      "text": "everyone must understand the significance of the food waste problem",
+      "start": 538.27,
+      "end": 541.97003,
+      "confidence": 0.9
+    },
+    {
+      "text": "today so we will be able to provide enough food",
+      "start": 542.19,
+      "end": 546.075,
+      "confidence": 0.9
+    },
+    {
+      "text": "for our kids tomorrow today we need to start take",
+      "start": 546.075,
+      "end": 550.635,
+      "confidence": 0.9
+    },
+    {
+      "text": "and write actions by ourselves and then expand the regulations",
+      "start": 550.635,
+      "end": 555.38074,
+      "confidence": 0.9
+    },
+    {
+      "text": "on more countries and regions of this world in order",
+      "start": 555.6807,
+      "end": 559.0408,
+      "confidence": 0.9
+    },
+    {
+      "text": "to save our food thank you",
+      "start": 559.0408,
+      "end": 561.70074,
+      "confidence": 0.9
+    }
+  ],
+  "geminiReport": {
+    "coachingAdvice": "The presentation demonstrated effective speaking pace and maintained composed body language throughout. Notably, the overall eye contact was strong, contributing to audience engagement.\n\nHowever, there are clear opportunities for refinement. While eye contact was generally good, consistency in maintaining a direct gaze could be improved to sustain connection. The most significant area for development involves the frequent use of filler words, which can detract from message clarity and speaker credibility.\n\nTo enhance these",
+    "headline": "Good presence, refining the details",
+    "generatedAt": "2026-01-11T09:56:58.368552",
+    "modelUsed": "gemini-2.5-flash"
+  }
+}

@@ -1,0 +1,227 @@
+{
+  "videoId": "sample-3",
+  "videoUrl": "/api/videos/sample-3/stream",
+  "durationSeconds": 84.38125,
+  "coherenceScore": 47,
+  "scoreTier": "Needs Work",
+  "metrics": {
+    "eyeContact": 80,
+    "fillerWords": 9,
+    "fidgeting": 3,
+    "speakingPace": 119,
+    "speakingPaceTarget": "140-160"
+  },
+  "dissonanceFlags": [
+    {
+      "id": "flag-1",
+      "timestamp": 10.0,
+      "endTimestamp": 15.0,
+      "type": "EMOTIONAL_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "The speaker's facial expression does not match the positive tone of their words.",
+      "coaching": "Practice aligning facial expressions with the message to enhance engagement.",
+      "visualEvidence": "Neutral facial expression while speaking positively.",
+      "verbalEvidence": "Positive words spoken without corresponding facial expression."
+    },
+    {
+      "id": "flag-2",
+      "timestamp": 25.0,
+      "endTimestamp": 30.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "The speaker uses 'this' without pointing to anything specific.",
+      "coaching": "Use hand gestures to emphasize key points and maintain audience interest.",
+      "visualEvidence": "Hands remain still while referencing 'this'.",
+      "verbalEvidence": "Use of 'this' without corresponding gesture."
+    },
+    {
+      "id": "flag-3",
+      "timestamp": 40.0,
+      "endTimestamp": 45.0,
+      "type": "PACING_MISMATCH",
+      "severity": "HIGH",
+      "description": "Long pause followed by rapid speech, disrupting the flow.",
+      "coaching": "Practice maintaining a consistent pace to keep the audience engaged.",
+      "visualEvidence": "Pause followed by quick speech.",
+      "verbalEvidence": "Pause and then rapid speech."
+    },
+    {
+      "id": "flag-4",
+      "timestamp": 28.0,
+      "endTimestamp": 53.0,
+      "type": "PACING_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "The speaker uses filler words such as 'so' and 'actually' frequently.",
+      "coaching": "Minimize filler words to improve clarity and maintain audience focus.",
+      "visualEvidence": "No specific visual evidence.",
+      "verbalEvidence": "Filler words like 'so' and 'actually' are used."
+    },
+    {
+      "id": "flag-5",
+      "timestamp": 28.0,
+      "endTimestamp": 53.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "The speaker's hands remain relatively still during the explanation of their interests.",
+      "coaching": "Consider adding more dynamic gestures to complement the spoken content.",
+      "visualEvidence": "Hands remain still.",
+      "verbalEvidence": "Explanation of interests."
+    },
+    {
+      "id": "flag-6",
+      "timestamp": 56.0,
+      "endTimestamp": 56.0,
+      "type": "PACING_MISMATCH",
+      "severity": "LOW",
+      "description": "The speaker occasionally touches their face, which can be distracting.",
+      "coaching": "Work on reducing nervous movements to appear more confident.",
+      "visualEvidence": "Occasional touching of face.",
+      "verbalEvidence": "No specific verbal evidence."
+    }
+  ],
+  "timelineHeatmap": [
+    {
+      "timestamp": 10.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 25.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 28.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 28.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 40.0,
+      "severity": "HIGH"
+    },
+    {
+      "timestamp": 56.0,
+      "severity": "LOW"
+    }
+  ],
+  "strengths": [
+    "Strong eye contact with camera",
+    "Calm and composed body language"
+  ],
+  "priorities": [
+    "Increase energy and speaking pace",
+    "Match facial expressions to your words",
+    "Use gestures when referencing content"
+  ],
+  "transcript": [
+    {
+      "text": "hello doctor saris doctor shaffer uh my name is ramesh",
+      "start": 1.12,
+      "end": 5.04,
+      "confidence": 0.9
+    },
+    {
+      "text": "hassanli and once again it's really nice to meet you",
+      "start": 5.04,
+      "end": 8.98,
+      "confidence": 0.9
+    },
+    {
+      "text": "um you can call me ram roma rami whatever and",
+      "start": 9.5199995,
+      "end": 15.495,
+      "confidence": 0.9
+    },
+    {
+      "text": "yeah my pronoun pronounce is he so my birthday is",
+      "start": 16.195,
+      "end": 20.994999,
+      "confidence": 0.9
+    },
+    {
+      "text": "in on july '16 and i like music i really",
+      "start": 20.994999,
+      "end": 29.609999,
+      "confidence": 0.9
+    },
+    {
+      "text": "like music uh there are several genres which i actually",
+      "start": 29.609999,
+      "end": 33.149998,
+      "confidence": 0.9
+    },
+    {
+      "text": "into and so for example um i like techno sometimes",
+      "start": 33.45,
+      "end": 38.01,
+      "confidence": 0.9
+    },
+    {
+      "text": "but at the same time i really find interesting list",
+      "start": 38.01,
+      "end": 41.165,
+      "confidence": 0.9
+    },
+    {
+      "text": "uh and relaxing listening to jazz songs um i'm from",
+      "start": 41.165,
+      "end": 46.865,
+      "confidence": 0.9
+    },
+    {
+      "text": "i'm international student from country azerbaijan it's a country in",
+      "start": 47.565,
+      "end": 52.205,
+      "confidence": 0.9
+    },
+    {
+      "text": "middle east far away from here i'm very interested in",
+      "start": 52.205,
+      "end": 58.22,
+      "confidence": 0.9
+    },
+    {
+      "text": "creating a video games in future that's why that's why",
+      "start": 58.920002,
+      "end": 62.2,
+      "confidence": 0.9
+    },
+    {
+      "text": "actually i chose the school of engineering of uh in",
+      "start": 62.2,
+      "end": 65.16,
+      "confidence": 0.9
+    },
+    {
+      "text": "computer science and i'm looking forward into joining the process",
+      "start": 65.16,
+      "end": 69.605,
+      "confidence": 0.9
+    },
+    {
+      "text": "of actually creating games and all of this stuff um",
+      "start": 70.225,
+      "end": 74.385,
+      "confidence": 0.9
+    },
+    {
+      "text": "and the only memorable fact about me yeah i don't",
+      "start": 74.385,
+      "end": 79.745,
+      "confidence": 0.9
+    },
+    {
+      "text": "believe in god and uh i am proud of it",
+      "start": 79.745,
+      "end": 82.245,
+      "confidence": 0.9
+    }
+  ],
+  "geminiReport": {
+    "coachingAdvice": "Wow, you did a fantastic job maintaining eye contact right from the start, which really helped you connect with your audience, and your composed body language projected confidence beautifully",
+    "headline": "Good presence, refining the details",
+    "generatedAt": "2026-01-11T09:33:06.845204",
+    "modelUsed": "gemini-2.5-flash"
+  }
+}

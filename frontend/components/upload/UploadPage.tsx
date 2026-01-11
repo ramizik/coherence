@@ -118,6 +118,7 @@ export function UploadPage({ onNavigateToResults }: UploadPageProps) {
               selectedFile={selectedFile}
               onFileSelect={handleFileSelect}
               onAnalyze={handleAnalyze}
+              onSelectSample={onNavigateToResults}
               isUploading={isUploading}
               error={uploadError}
             />

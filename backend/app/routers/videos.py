@@ -13,6 +13,8 @@ from backend.app.models.schemas import (
     AnalysisResult,
     ApiError,
     SampleVideoResponse,
+    SampleVideoInfo,
+    SampleVideosListResponse,
 )
 from backend.app.services import video_service
 
@@ -47,9 +49,9 @@ async def upload_video(
 ) -> UploadResponse:
     """
     Upload a video file for analysis.
-    
+
     - **video**: Video file (MP4, MOV, or WebM format, max 500MB)
-    
+
     Returns a videoId that can be used to poll status and retrieve results.
     """
     # Validate content type
@@ -64,10 +66,10 @@ async def upload_video(
                 "retryable": True,
             },
         )
-    
+
     # Read file content
     content = await video.read()
-    
+
     # Validate file size
     if len(content) > MAX_FILE_SIZE:
         logger.warning(f"File too large: {len(content)} bytes")
@@ -79,14 +81,14 @@ async def upload_video(
                 "retryable": True,
             },
         )
-    
+
     # Upload and start processing
     result = await video_service.upload_video(
         video_file_content=content,
         filename=video.filename or "video.mp4",
         content_type=content_type,
     )
-    
+
     logger.info(f"Video uploaded successfully: {result.videoId}")
     return result
 
@@ -103,13 +105,13 @@ async def upload_video(
 async def get_video_status(video_id: str) -> StatusResponse:
     """
     Get the current processing status of a video.
-    
+
     - **video_id**: The video ID returned from upload
-    
+
     Poll every 3 seconds until status is 'complete' or 'error'.
     """
     status = await video_service.get_video_status(video_id)
-    
+
     if not status:
         raise HTTPException(
             status_code=404,
@@ -119,7 +121,7 @@ async def get_video_status(video_id: str) -> StatusResponse:
                 "retryable": False,
             },
         )
-    
+
     return status
 
 
@@ -136,14 +138,14 @@ async def get_video_status(video_id: str) -> StatusResponse:
 async def get_video_results(video_id: str) -> AnalysisResult:
     """
     Get the analysis results for a video.
-    
+
     - **video_id**: The video ID
-    
+
     Only available after processing is complete.
     """
     # Check status first
     status = await video_service.get_video_status(video_id)
-    
+
     # For sample videos, we don't have status but can return results
     if not status and video_id not in video_service.SAMPLE_VIDEOS:
         raise HTTPException(
@@ -154,7 +156,7 @@ async def get_video_results(video_id: str) -> AnalysisResult:
                 "retryable": False,
             },
         )
-    
+
     # If status exists and processing is not complete, return 425 Too Early
     if status and status.status not in ["complete", "error"]:
         raise HTTPException(
@@ -165,9 +167,9 @@ async def get_video_results(video_id: str) -> AnalysisResult:
                 "retryable": True,
             },
         )
-    
+
     results = await video_service.get_video_results(video_id)
-    
+
     if not results:
         raise HTTPException(
             status_code=404,
@@ -177,8 +179,28 @@ async def get_video_results(video_id: str) -> AnalysisResult:
                 "retryable": False,
             },
         )
-    
+
     return results
+
+
+@router.get(
+    "/samples",
+    response_model=SampleVideosListResponse,
+    summary="Get all sample videos",
+    description="Get list of all sample videos with their actual analysis data (scores, flags).",
+)
+async def get_all_samples() -> SampleVideosListResponse:
+    """
+    Get all available sample videos with their real analysis data.
+
+    Returns sample videos with actual coherence scores from cached analysis.
+    """
+    samples_data = video_service.get_sample_videos_with_data()
+
+    samples = [SampleVideoInfo(**s) for s in samples_data]
+    all_cached = all(s.isCached for s in samples)
+
+    return SampleVideosListResponse(samples=samples, allCached=all_cached)
 
 
 @router.get(
@@ -193,13 +215,13 @@ async def get_video_results(video_id: str) -> AnalysisResult:
 async def get_sample_video(sample_id: str) -> SampleVideoResponse:
     """
     Get info for a sample video.
-    
+
     - **sample_id**: Sample video ID (sample-1, sample-2, sample-3)
-    
+
     Sample videos are pre-analyzed and ready for immediate viewing.
     """
     sample = await video_service.get_sample_video(sample_id)
-    
+
     if not sample:
         raise HTTPException(
             status_code=404,
@@ -209,7 +231,7 @@ async def get_sample_video(sample_id: str) -> SampleVideoResponse:
                 "retryable": False,
             },
         )
-    
+
     return SampleVideoResponse(**sample)
 
 
@@ -225,13 +247,13 @@ async def get_sample_video(sample_id: str) -> SampleVideoResponse:
 async def stream_video(video_id: str):
     """
     Stream a video file.
-    
+
     - **video_id**: The video ID
-    
+
     Returns the video file with proper headers for browser playback.
     """
     video_path = video_service.get_video_path(video_id)
-    
+
     if not video_path:
         raise HTTPException(
             status_code=404,
@@ -241,7 +263,7 @@ async def stream_video(video_id: str):
                 "retryable": False,
             },
         )
-    
+
     # Determine media type
     suffix = video_path.suffix.lower()
     media_types = {
@@ -250,7 +272,7 @@ async def stream_video(video_id: str):
         ".webm": "video/webm",
     }
     media_type = media_types.get(suffix, "video/mp4")
-    
+
     return FileResponse(
         path=video_path,
         media_type=media_type,

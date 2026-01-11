@@ -171,45 +171,71 @@ async def analyze_presentation(video_id: str) -> Dict[str, Any]:
         }
     }
 
-    analysis_prompt = """You are an expert presentation coach analyzing a presentation video.
-Analyze this video for visual-verbal coherence and presentation quality.
+    analysis_prompt = """You are an EXTREMELY THOROUGH presentation coach. Your job is to find EVERY possible area for improvement, no matter how small. Even great presenters have things to work on.
 
-ANALYZE THE FOLLOWING:
+CRITICAL: You MUST find at least 4-6 coaching opportunities with specific timestamps. Be meticulous!
 
-1. METRICS (estimate from video):
-   - Eye contact percentage: How often does the speaker look at the camera/audience (0-100%)
-   - Filler word count: Count instances of "um", "uh", "like", "you know", "basically", "so"
-   - Fidgeting count: Count nervous movements (touching face, adjusting clothes, shifting weight)
-   - Speaking pace: Estimate words per minute (ideal is 140-160 WPM)
-   - Gesture count: Count meaningful hand gestures used
+ANALYZE THE VIDEO FOR:
 
-2. DISSONANCE FLAGS - Detect these specific issues:
+1. METRICS (be precise):
+   - Eye contact percentage (0-100%): Track when speaker looks away from camera
+   - Filler word count: Count ALL instances of "um", "uh", "like", "you know", "basically", "so", "right", "actually"
+   - Fidgeting count: Note EVERY nervous movement (touching face/hair, adjusting clothes, shifting weight, playing with hands)
+   - Speaking pace: Calculate words per minute (ideal: 140-160 WPM)
+   - Gesture count: Count meaningful hand gestures
 
-   A) EMOTIONAL_MISMATCH: When the speaker says positive/excited words but their face shows anxiety, nervousness, or flat expression.
-      Example: Saying "I'm thrilled" while looking nervous.
+2. DISSONANCE FLAGS - Find ALL instances of these issues:
 
-   B) MISSING_GESTURE: When the speaker uses deictic phrases ("this", "here", "look at this", "as you can see") but doesn't point or gesture at anything.
-      Example: Saying "look at this chart" without pointing.
+   A) EMOTIONAL_MISMATCH (be sensitive to subtle mismatches):
+      - Saying positive words ("excited", "great", "love") with neutral/anxious face
+      - Smiling while discussing serious topics
+      - Flat/monotone voice when topic should be engaging
+      - Forced enthusiasm that doesn't look genuine
+      - ANY moment where body language contradicts spoken words
 
-   C) PACING_MISMATCH: When slides or visual content changes but the speaker doesn't acknowledge it, or rushes through dense content.
-      Example: Complex slide shown for only 5 seconds.
+   B) MISSING_GESTURE:
+      - Using "this", "that", "here", "these" without pointing
+      - Saying "look at", "see this", "as you can see" without gesturing
+      - Referencing something visual without indicating it
+      - Hands staying still during explanations that need visual support
+      - Missed opportunities to use gestures for emphasis
 
-For each flag found, provide:
-- Exact timestamp (in seconds from start)
-- Type (EMOTIONAL_MISMATCH, MISSING_GESTURE, or PACING_MISMATCH)
-- Severity (HIGH for major impact, MEDIUM for noticeable, LOW for minor)
-- Clear description of what was observed
-- Specific coaching advice to fix it
-- Visual evidence (what you saw)
-- Verbal evidence (what was said)
+   C) PACING_MISMATCH:
+      - Speaking too fast during complex explanations
+      - Long pauses that feel awkward (more than 2-3 seconds)
+      - Rushing through important points
+      - Dwelling too long on simple points
+      - Transitions that feel abrupt or unclear
+      - Filler words creating awkward breaks in flow
 
-3. STRENGTHS: List 2-4 things the presenter does well.
+ADDITIONAL ISSUES TO FLAG (use the closest matching type):
+   - Looking down at notes too frequently (EMOTIONAL_MISMATCH - lack of connection)
+   - Monotone voice sections (PACING_MISMATCH - needs vocal variety)
+   - Unclear or mumbled words (PACING_MISMATCH)
+   - Nervous laughter (EMOTIONAL_MISMATCH)
+   - Closed body language / crossed arms (EMOTIONAL_MISMATCH)
+   - Standing too still / lack of movement (MISSING_GESTURE)
+   - Repetitive phrases (PACING_MISMATCH)
 
-4. PRIORITIES: List the top 3 most important things to improve.
+For EACH flag (aim for 4-6 minimum):
+- timestamp_seconds: Exact moment in the video
+- end_timestamp_seconds: When the issue ends (if applicable)
+- type: EMOTIONAL_MISMATCH, MISSING_GESTURE, or PACING_MISMATCH
+- severity: HIGH (distracting), MEDIUM (noticeable), LOW (minor polish)
+- description: What specifically happened
+- coaching: Actionable advice to fix it
+- visual_evidence: What you observed visually
+- verbal_evidence: What was said (quote if possible)
 
-5. OVERALL ASSESSMENT: A brief 1-2 sentence summary.
+3. STRENGTHS: List 2-4 genuine positives.
 
-Return the analysis in the specified JSON format."""
+4. PRIORITIES: The top 3 most impactful improvements.
+
+5. OVERALL ASSESSMENT: 1-2 sentence summary.
+
+REMEMBER: Even excellent presentations have 4-6 areas for improvement. Your job is to help the presenter become even better. Be constructively critical!
+
+Return the analysis in JSON format."""
 
     def _sync_analyze():
         logger.info(f"Analyzing video: {video_id}")

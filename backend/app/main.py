@@ -107,6 +107,27 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"✗ Gemini: IMPORT FAILED ({e})")
 
+    logger.info("-" * 60)
+
+    # Check sample video cache status (for demo mode)
+    try:
+        from backend.app.services.video_service import get_cached_samples_status, SAMPLE_VIDEOS
+        cache_status = get_cached_samples_status()
+        cached_count = sum(1 for v in cache_status.values() if v)
+        total_count = len(SAMPLE_VIDEOS)
+
+        if cached_count == total_count:
+            logger.info(f"✓ Sample Cache: ALL CACHED ({cached_count}/{total_count})")
+        elif cached_count > 0:
+            logger.info(f"~ Sample Cache: PARTIAL ({cached_count}/{total_count})")
+            for sample_id, is_cached in cache_status.items():
+                status = "✓" if is_cached else "✗"
+                logger.info(f"    {status} {sample_id}")
+        else:
+            logger.warning(f"✗ Sample Cache: NOT CACHED (run: python -m backend.preprocess_samples)")
+    except Exception as e:
+        logger.warning(f"✗ Sample Cache: CHECK FAILED ({e})")
+
     logger.info("=" * 60)
     logger.info("API ready at http://localhost:8000")
     logger.info("=" * 60)

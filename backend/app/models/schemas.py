@@ -195,3 +195,22 @@ class SampleVideoResponse(BaseModel):
     """Response for loading a sample video."""
     videoId: str
     status: str = "complete"
+
+
+class SampleVideoInfo(BaseModel):
+    """Information about a pre-processed sample video with actual analysis data."""
+    id: str = Field(..., description="Sample video ID (e.g., 'sample-1')")
+    title: str = Field(..., description="Display title for the sample")
+    score: int = Field(..., ge=0, le=100, description="Actual coherence score from analysis")
+    scoreTier: ScoreTier = Field(..., description="Score tier (Needs Work, Good Start, Strong)")
+    isCached: bool = Field(..., description="Whether this sample has cached results")
+    flagCount: int = Field(0, ge=0, description="Number of coaching insights/flags")
+
+    class Config:
+        populate_by_name = True
+
+
+class SampleVideosListResponse(BaseModel):
+    """Response containing all available sample videos with their analysis data."""
+    samples: List[SampleVideoInfo] = Field(..., description="List of sample videos")
+    allCached: bool = Field(..., description="Whether all samples are cached and ready")

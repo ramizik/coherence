@@ -235,7 +235,7 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
 
             {/* Right: Gemini AI Summary Card */}
             {result.geminiReport && (
-              <div style={{ flexShrink: 0, width: '520px' }}>
+              <div style={{ flexShrink: 0, width: '620px' }}>
                 <GeminiSummaryCard
                   coachingAdvice={result.geminiReport.coachingAdvice}
                   headline={result.geminiReport.headline}

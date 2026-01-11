@@ -24,6 +24,7 @@ Output format matches the plan:
 import asyncio
 import json
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -255,6 +256,7 @@ If no contextual fillers are found, return:
 
         # Parse response
         response_text = response.text.strip()
+        logger.debug(f"Raw Gemini response for fillers: {response_text[:200]}...")
 
         # Extract JSON from response (handle potential markdown formatting)
         if "```json" in response_text:
@@ -265,6 +267,14 @@ If no contextual fillers are found, return:
             start = response_text.find("```") + 3
             end = response_text.find("```", start)
             response_text = response_text[start:end].strip()
+
+        # Try to extract JSON object using regex if direct parsing fails
+        json_match = re.search(r'\{[^{}]*"filler_indices"[^{}]*\}', response_text)
+        if json_match:
+            response_text = json_match.group()
+
+        # Clean up common issues
+        response_text = response_text.replace("'", '"')  # Single to double quotes
 
         result = json.loads(response_text)
         filler_indices = result.get("filler_indices", [])

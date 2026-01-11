@@ -3,8 +3,10 @@
 Handles video upload, processing orchestration, and results retrieval.
 Uses in-memory storage for hackathon demo (no database).
 Integrates with TwelveLabs and Deepgram for real video analysis.
+Supports pre-cached results for demo reliability (offline mode).
 """
 import asyncio
+import json
 import os
 import uuid
 from datetime import datetime
@@ -94,10 +96,18 @@ _results_storage: Dict[str, AnalysisResult] = {}
 # Path for video file storage
 VIDEOS_DIR = Path(__file__).parent.parent.parent.parent / "data" / "videos"
 
+# Path for cached analysis results (pre-processed for demo)
+CACHE_DIR = Path(__file__).parent.parent.parent.parent / "data" / "cache"
+
 
 def _ensure_videos_dir():
     """Ensure the videos directory exists."""
     VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _ensure_cache_dir():
+    """Ensure the cache directory exists."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _get_score_tier(score: int) -> ScoreTier:
@@ -183,38 +193,176 @@ def _generate_mock_result(video_id: str, duration: float = 183.0) -> AnalysisRes
 
 
 # ========================
-# Sample Videos (Pre-cached)
+# Sample Videos (Pre-cached for Demo)
 # ========================
 
 SAMPLE_VIDEOS = {
     "sample-1": {
-        "title": "Nervous Student",
-        "score": 42,
+        "title": "Startup Pitch",
+        "description": "A strong startup pitch presentation",
+        "expected_score": 81,
         "duration": 120.0,
     },
     "sample-2": {
-        "title": "Confident Pitch",
-        "score": 89,
+        "title": "Class Presentation",
+        "description": "A presentation that needs more practice",
+        "expected_score": 42,
         "duration": 180.0,
     },
     "sample-3": {
-        "title": "Mixed Signals",
-        "score": 61,
+        "title": "Team Introduction",
+        "description": "An average presentation with room for improvement",
+        "expected_score": 59,
         "duration": 150.0,
     },
 }
 
+# In-memory cache for loaded sample results (loaded from disk on first access)
+_sample_results_cache: Dict[str, AnalysisResult] = {}
+
+
+def _get_cached_result_path(sample_id: str) -> Path:
+    """Get the path to a cached result JSON file."""
+    return CACHE_DIR / f"{sample_id}_result.json"
+
+
+def _load_cached_result(sample_id: str) -> Optional[AnalysisResult]:
+    """Load a cached result from disk.
+
+    Returns:
+        AnalysisResult if cache file exists, None otherwise
+    """
+    # Check in-memory cache first
+    if sample_id in _sample_results_cache:
+        logger.info(f"Returning in-memory cached result for: {sample_id}")
+        return _sample_results_cache[sample_id]
+
+    # Try to load from disk
+    cache_path = _get_cached_result_path(sample_id)
+    if not cache_path.exists():
+        logger.warning(f"No cached result found for: {sample_id}")
+        return None
+
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        # Convert JSON to AnalysisResult
+        result = AnalysisResult(**data)
+
+        # Store in memory cache for faster subsequent access
+        _sample_results_cache[sample_id] = result
+        logger.info(f"Loaded cached result from disk: {sample_id}")
+
+        return result
+    except Exception as e:
+        logger.error(f"Failed to load cached result for {sample_id}: {e}")
+        return None
+
+
+def save_cached_result(sample_id: str, result: AnalysisResult) -> bool:
+    """Save an analysis result to the cache.
+
+    Args:
+        sample_id: Sample video identifier
+        result: Analysis result to cache
+
+    Returns:
+        True if saved successfully, False otherwise
+    """
+    _ensure_cache_dir()
+
+    cache_path = _get_cached_result_path(sample_id)
+
+    try:
+        # Convert to dict and save as JSON
+        result_dict = result.model_dump()
+
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(result_dict, f, indent=2, default=str)
+
+        # Also store in memory cache
+        _sample_results_cache[sample_id] = result
+
+        logger.info(f"Saved cached result: {cache_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save cached result for {sample_id}: {e}")
+        return False
+
 
 def _generate_sample_result(sample_id: str) -> AnalysisResult:
-    """Generate result for a sample video."""
+    """Get result for a sample video - from cache or generated.
+
+    Prioritizes cached results for instant demo loading.
+    Falls back to mock generation if no cache exists.
+    """
+    # Try to load from cache first (instant access for demo)
+    cached = _load_cached_result(sample_id)
+    if cached:
+        return cached
+
+    # Fall back to mock generation
     sample = SAMPLE_VIDEOS.get(sample_id)
     if not sample:
         raise ValueError(f"Unknown sample: {sample_id}")
 
+    logger.warning(f"No cache for {sample_id}, generating mock result")
     result = _generate_mock_result(sample_id, sample["duration"])
-    result.coherenceScore = sample["score"]
-    result.scoreTier = _get_score_tier(sample["score"])
+    result.coherenceScore = sample["expected_score"]
+    result.scoreTier = _get_score_tier(sample["expected_score"])
     return result
+
+
+def is_sample_cached(sample_id: str) -> bool:
+    """Check if a sample video has cached results."""
+    if sample_id in _sample_results_cache:
+        return True
+    return _get_cached_result_path(sample_id).exists()
+
+
+def get_cached_samples_status() -> Dict[str, bool]:
+    """Get caching status for all sample videos."""
+    return {
+        sample_id: is_sample_cached(sample_id)
+        for sample_id in SAMPLE_VIDEOS.keys()
+    }
+
+
+def get_sample_videos_with_data() -> List[Dict[str, Any]]:
+    """Get all sample videos with their actual analysis data.
+
+    Returns list of sample info with real scores from cached results.
+    Falls back to placeholder data if cache doesn't exist.
+    """
+    samples = []
+
+    for sample_id, sample_info in SAMPLE_VIDEOS.items():
+        cached = _load_cached_result(sample_id)
+
+        if cached:
+            # Use real data from cache
+            samples.append({
+                "id": sample_id,
+                "title": sample_info.get("title", f"Sample {sample_id}"),
+                "score": cached.coherenceScore,
+                "scoreTier": cached.scoreTier,
+                "isCached": True,
+                "flagCount": len(cached.dissonanceFlags) if cached.dissonanceFlags else 0,
+            })
+        else:
+            # Fallback to placeholder data
+            expected_score = sample_info.get("expected_score", 50)
+            samples.append({
+                "id": sample_id,
+                "title": sample_info.get("title", f"Sample {sample_id}"),
+                "score": expected_score,
+                "scoreTier": _get_score_tier(expected_score),
+                "isCached": False,
+                "flagCount": 0,
+            })
+
+    return samples
 
 
 # ========================

@@ -1,0 +1,222 @@
+{
+  "videoId": "sample-1",
+  "videoUrl": "/api/videos/sample-1/stream",
+  "durationSeconds": 62.964,
+  "coherenceScore": 64,
+  "scoreTier": "Good Start",
+  "metrics": {
+    "eyeContact": 80,
+    "fillerWords": 0,
+    "fidgeting": 3,
+    "speakingPace": 156,
+    "speakingPaceTarget": "140-160"
+  },
+  "dissonanceFlags": [
+    {
+      "id": "flag-1",
+      "timestamp": 10.0,
+      "endTimestamp": 15.0,
+      "type": "EMOTIONAL_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "The speaker's facial expression appears neutral while discussing an exciting topic.",
+      "coaching": "Work on aligning facial expressions with the excitement of the topic.",
+      "visualEvidence": "Neutral facial expression",
+      "verbalEvidence": "Discussing an exciting topic"
+    },
+    {
+      "id": "flag-2",
+      "timestamp": 25.0,
+      "endTimestamp": 30.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "The speaker uses 'this' without pointing to anything specific.",
+      "coaching": "Use hand gestures to point out specific examples.",
+      "visualEvidence": "Using 'this' without pointing",
+      "verbalEvidence": "Using 'this'"
+    },
+    {
+      "id": "flag-3",
+      "timestamp": 40.0,
+      "endTimestamp": 45.0,
+      "type": "PACING_MISMATCH",
+      "severity": "HIGH",
+      "description": "Long pause that feels awkward.",
+      "coaching": "Practice maintaining a steady pace to avoid awkward pauses.",
+      "visualEvidence": "Long pause",
+      "verbalEvidence": "No speech during this time"
+    },
+    {
+      "id": "flag-4",
+      "timestamp": 50.0,
+      "endTimestamp": 55.0,
+      "type": "PACING_MISMATCH",
+      "severity": "MEDIUM",
+      "description": "Speaking too fast during complex explanations.",
+      "coaching": "Consider varying the pace to match the complexity of the content.",
+      "visualEvidence": "Rapid speaking",
+      "verbalEvidence": "to find the patterns and prepare their team for the upcoming games."
+    },
+    {
+      "id": "flag-5",
+      "timestamp": 1.0,
+      "endTimestamp": 27.0,
+      "type": "PACING_MISMATCH",
+      "severity": "LOW",
+      "description": "Observed filler words like 'um' and 'like'.",
+      "coaching": "Work on reducing filler words to improve clarity.",
+      "visualEvidence": "Use of filler words",
+      "verbalEvidence": "Hi, I'm Ramiz, a solo founder of Tactico AI."
+    },
+    {
+      "id": "flag-6",
+      "timestamp": 56.0,
+      "endTimestamp": 61.0,
+      "type": "MISSING_GESTURE",
+      "severity": "LOW",
+      "description": "Observed fidgeting with hands.",
+      "coaching": "Practice more natural hand movements to enhance engagement.",
+      "visualEvidence": "Fidgeting with hands",
+      "verbalEvidence": "is my childhood dream being a tech founder who solves a real world problems."
+    }
+  ],
+  "timelineHeatmap": [
+    {
+      "timestamp": 1.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 10.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 25.0,
+      "severity": "LOW"
+    },
+    {
+      "timestamp": 40.0,
+      "severity": "HIGH"
+    },
+    {
+      "timestamp": 50.0,
+      "severity": "MEDIUM"
+    },
+    {
+      "timestamp": 56.0,
+      "severity": "LOW"
+    }
+  ],
+  "strengths": [
+    "Strong eye contact with camera",
+    "Clear speech with minimal filler words",
+    "Calm and composed body language",
+    "Well-paced delivery"
+  ],
+  "priorities": [
+    "Match facial expressions to your words",
+    "Use gestures when referencing content"
+  ],
+  "transcript": [
+    {
+      "text": "hi i'm ramese a solo founder of tactical ai i'm",
+      "start": 1.92,
+      "end": 6.3999996,
+      "confidence": 0.9
+    },
+    {
+      "text": "building ai powered tactical analysis for soccer teams i've been",
+      "start": 6.3999996,
+      "end": 10.4,
+      "confidence": 0.9
+    },
+    {
+      "text": "passionate about soccer since early childhood playing competitively back home",
+      "start": 10.4,
+      "end": 14.795,
+      "confidence": 0.9
+    },
+    {
+      "text": "in my country before coming to united states for studies",
+      "start": 14.795,
+      "end": 18.015,
+      "confidence": 0.9
+    },
+    {
+      "text": "since early twenty twenty five i've been working part time",
+      "start": 18.555,
+      "end": 21.515,
+      "confidence": 0.9
+    },
+    {
+      "text": "with my college soccer team and i noticed that coaches",
+      "start": 21.515,
+      "end": 25.035,
+      "confidence": 0.9
+    },
+    {
+      "text": "spend hours and hours on reviewing the past game footages",
+      "start": 25.035,
+      "end": 28.415,
+      "confidence": 0.9
+    },
+    {
+      "text": "to find the patterns and prepare their team for the",
+      "start": 29.48,
+      "end": 32.36,
+      "confidence": 0.9
+    },
+    {
+      "text": "upcoming games i'm building a tool that allows teams to",
+      "start": 32.36,
+      "end": 37.32,
+      "confidence": 0.9
+    },
+    {
+      "text": "upload the video of the match and with help of",
+      "start": 37.32,
+      "end": 39.88,
+      "confidence": 0.9
+    },
+    {
+      "text": "machine learning we extract the data about speed distance formation",
+      "start": 39.88,
+      "end": 44.06,
+      "confidence": 0.9
+    },
+    {
+      "text": "etcetera then we pass this data to llm to provide",
+      "start": 44.975002,
+      "end": 47.615,
+      "confidence": 0.9
+    },
+    {
+      "text": "the contextual feedback and advices for the coach mvp is",
+      "start": 47.615,
+      "end": 51.855,
+      "confidence": 0.9
+    },
+    {
+      "text": "done we are launching next week with two pilot teams",
+      "start": 51.855,
+      "end": 55.555,
+      "confidence": 0.9
+    },
+    {
+      "text": "this is my childhood dream being a tech founder who",
+      "start": 55.775,
+      "end": 59.159,
+      "confidence": 0.9
+    },
+    {
+      "text": "solves a real world problems thank you",
+      "start": 59.159,
+      "end": 61.979,
+      "confidence": 0.9
+    }
+  ],
+  "geminiReport": {
+    "coachingAdvice": "Hey there! I was really impressed with your presentation today. Your eye contact was generally very good, you had hardly any filler words, and your body language",
+    "headline": "Clear and articulate speaker",
+    "generatedAt": "2026-01-11T09:28:24.946886",
+    "modelUsed": "gemini-2.5-flash"
+  }
+}
