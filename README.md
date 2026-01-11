@@ -4,6 +4,10 @@
 
 Coherence is the first AI platform that detects **visual-verbal dissonance** — when your body language contradicts what you're saying. Built for students, professionals, and anyone who wants to present with confidence.
 
+YouTube Demo:
+
+[![Tactico AI](https://img.youtube.com/vi/TbkoovSZkW0/0.jpg)](https://youtu.be/TbkoovSZkW0)
+
 ---
 
 ## 🚀 The Problem
