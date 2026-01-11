@@ -274,7 +274,7 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
             </div>
 
             {/* Scrollable container - height matches left column (Video + Timeline + Transcript) */}
-            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-12" style={{ maxHeight: '620px' }}>
+            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-12" style={{ maxHeight: '690px' }}>
               {activeFlags.length > 0 ? (
                 activeFlags.map((flag) => (
                   <CoachingCard
