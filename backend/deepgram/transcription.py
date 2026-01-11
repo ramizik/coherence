@@ -27,12 +27,12 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import List, Optional, Set
 
-from anthropic import Anthropic
 from deepgram import DeepgramClient
 
-from backend.deepgram.deepgram_client import client, is_available
+from backend.deepgram.deepgram_client import client
+from backend.gemini.gemini_client import client as gemini_client, is_available as gemini_available
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +190,6 @@ def _detect_vocal_disfluencies(words: List[WordInfo]) -> List[WordInfo]:
 async def _detect_contextual_fillers_with_llm(
     transcript: str,
     words: List[WordInfo],
-    anthropic_client: Optional[Anthropic] = None,
 ) -> List[WordInfo]:
     """Use LLM to detect contextual filler words.
 
@@ -200,14 +199,11 @@ async def _detect_contextual_fillers_with_llm(
     - "I like pizza" (not a filler)
     - "It was, like, really good" (filler)
 
-    API_CALL: Anthropic Claude API
+    API_CALL: Gemini 1.5 Pro
     """
-    if not anthropic_client:
-        try:
-            anthropic_client = Anthropic()
-        except Exception as e:
-            logger.warning(f"Could not initialize Anthropic client: {e}")
-            return []
+    if not gemini_available():
+        logger.warning("Gemini client not available for contextual filler detection")
+        return []
 
     if not transcript.strip():
         return []
@@ -249,21 +245,26 @@ If no contextual fillers are found, return:
 
     try:
         response = await asyncio.to_thread(
-            anthropic_client.messages.create,
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+            gemini_client.generate_content,
+            prompt,
+            generation_config={
+                "temperature": 0.1,  # Low temperature for consistent JSON
+                "max_output_tokens": 1024,
+            },
         )
 
         # Parse response
-        response_text = response.content[0].text.strip()
+        response_text = response.text.strip()
 
         # Extract JSON from response (handle potential markdown formatting)
-        if "```" in response_text:
-            # Extract JSON from code block
-            start = response_text.find("{")
-            end = response_text.rfind("}") + 1
-            response_text = response_text[start:end]
+        if "```json" in response_text:
+            start = response_text.find("```json") + 7
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
+        elif "```" in response_text:
+            start = response_text.find("```") + 3
+            end = response_text.find("```", start)
+            response_text = response_text[start:end].strip()
 
         result = json.loads(response_text)
         filler_indices = result.get("filler_indices", [])
@@ -276,14 +277,14 @@ If no contextual fillers are found, return:
                 words[idx].filler_type = FillerType.CONTEXTUAL
                 contextual_fillers.append(words[idx])
 
-        logger.info(f"LLM detected {len(contextual_fillers)} contextual fillers")
+        logger.info(f"Gemini detected {len(contextual_fillers)} contextual fillers")
         return contextual_fillers
 
     except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse LLM response as JSON: {e}")
+        logger.warning(f"Failed to parse Gemini response as JSON: {e}")
         return []
     except Exception as e:
-        logger.warning(f"LLM filler detection failed: {e}")
+        logger.warning(f"Gemini filler detection failed: {e}")
         return []
 
 
@@ -348,18 +349,16 @@ async def transcribe_audio(
     audio_path: str | Path,
     language: str = "en",
     use_llm_filler_detection: bool = True,
-    anthropic_client: Optional[Anthropic] = None,
 ) -> TranscriptionResult:
     """Transcribe audio file and extract speech metrics.
 
     API_CALL: Deepgram SDK v5.x - client.listen.rest.v("1").transcribe_file()
-    API_CALL: Anthropic Claude (optional, for contextual filler detection)
+    API_CALL: Gemini 1.5 Pro (optional, for contextual filler detection)
 
     Args:
         audio_path: Path to audio or video file (MP4, MOV, WebM, MP3, WAV, etc.)
         language: Language code (default: "en" for English)
-        use_llm_filler_detection: Whether to use LLM for contextual filler detection
-        anthropic_client: Optional pre-configured Anthropic client
+        use_llm_filler_detection: Whether to use Gemini for contextual filler detection
 
     Returns:
         TranscriptionResult with transcript, word timestamps, and metrics
@@ -453,11 +452,11 @@ async def transcribe_audio(
     vocal_fillers = _detect_vocal_disfluencies(words)
     logger.info(f"Detected {len(vocal_fillers)} vocal disfluencies")
 
-    # Tier 2: Use LLM for contextual filler detection (optional)
+    # Tier 2: Use Gemini for contextual filler detection (optional)
     contextual_fillers = []
     if use_llm_filler_detection and transcript.strip():
         contextual_fillers = await _detect_contextual_fillers_with_llm(
-            transcript, words, anthropic_client
+            transcript, words
         )
 
     # Combine filler analysis
