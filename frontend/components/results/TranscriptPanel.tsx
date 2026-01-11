@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { FileText } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface TranscriptWord {
   text: string;
@@ -23,10 +23,10 @@ export function TranscriptPanel({ transcript, currentTime, onWordClick }: Transc
     if (currentWordRef.current && containerRef.current) {
       const container = containerRef.current;
       const word = currentWordRef.current;
-      
+
       const containerRect = container.getBoundingClientRect();
       const wordRect = word.getBoundingClientRect();
-      
+
       // Check if word is outside visible area
       if (wordRect.top < containerRect.top || wordRect.bottom > containerRect.bottom) {
         word.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -82,7 +82,7 @@ export function TranscriptPanel({ transcript, currentTime, onWordClick }: Transc
       {/* Scrollable transcript */}
       <div
         ref={containerRef}
-        className="overflow-y-auto p-4"
+        className="overflow-y-auto p-4 pr-2 custom-scrollbar"
         style={{
           maxHeight: '220px',
           lineHeight: '1.8',

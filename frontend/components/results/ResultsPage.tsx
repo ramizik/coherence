@@ -273,28 +273,37 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
               </h2>
             </div>
 
-            {/* Scrollable container - height matches left column (Video + Timeline + Transcript) */}
-            <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-12" style={{ maxHeight: '690px' }}>
-              {activeFlags.length > 0 ? (
-                activeFlags.map((flag) => (
-                  <CoachingCard
-                    key={flag.id}
-                    flag={flag}
-                    onSeek={handleSeek}
-                    onDismiss={handleDismissFlag}
-                  />
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                  <div className="text-6xl mb-4">✨</div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Nothing to see here!</h3>
-                  <p className="text-gray-400 text-sm">All coaching insights have been dismissed.</p>
-                </div>
-              )}
-            </div>
+            {/* Scrollable container wrapper with fade effect */}
+            <div className="relative" style={{ maxHeight: '690px' }}>
+              {/* Scrollable content */}
+              <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar pb-20 h-full" style={{ maxHeight: '690px' }}>
+                {activeFlags.length > 0 ? (
+                  activeFlags.map((flag) => (
+                    <CoachingCard
+                      key={flag.id}
+                      flag={flag}
+                      onSeek={handleSeek}
+                      onDismiss={handleDismissFlag}
+                    />
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                    <div className="text-6xl mb-4">✨</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">Nothing to see here!</h3>
+                    <p className="text-gray-400 text-sm">All coaching insights have been dismissed.</p>
+                  </div>
+                )}
+              </div>
 
-            {/* Gradient fade-out overlay */}
-            <div className="absolute bottom-0 left-0 right-0 h-[60px] pointer-events-none bg-gradient-to-t from-[#0F172A] to-transparent" />
+              {/* Gradient fade-out overlay */}
+              <div
+                className="absolute bottom-0 left-0 right-0 pointer-events-none"
+                style={{
+                  height: '100px',
+                  background: 'linear-gradient(to top, #0F172A 0%, #0F172A 20%, transparent 100%)',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
