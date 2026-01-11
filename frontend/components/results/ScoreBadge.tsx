@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '../ui/utils';
 
 interface ScoreBadgeProps {
@@ -33,8 +34,39 @@ function getScoreColor(score: number) {
  *
  * Styling: Color-coded by score range (green 76+, amber 51-75, red 0-50)
  * Sizes: sm (80px), md (100px), lg (140px)
+ * Animation: Score counts up from 0 to actual value over 1.5 seconds on mount
  */
 export function ScoreBadge({ score, size = 'lg' }: ScoreBadgeProps) {
+  const [displayedScore, setDisplayedScore] = useState(0);
+  const hasAnimated = useRef(false);
+
+  // Animate score count-up on initial mount
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+
+    const duration = 1500; // 1.5 seconds
+    const startTime = Date.now();
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(eased * score);
+
+      setDisplayedScore(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [score]);
+
+  // Use actual score for colors (so color is correct from start)
   const colors = getScoreColor(score);
   const sizeClasses = {
     sm: 'w-[80px] h-[80px]',
@@ -51,9 +83,9 @@ export function ScoreBadge({ score, size = 'lg' }: ScoreBadgeProps) {
   const labelText = score >= 76 ? 'Excellent!' : score >= 51 ? 'Good Start' : 'Needs Work';
   const labelColor = score >= 76 ? 'text-emerald-400' : score >= 51 ? 'text-amber-400' : 'text-red-400';
 
-  // Calculate stroke dasharray for progress circle (67% = 268.08 offset)
+  // Calculate stroke dasharray for progress circle using displayedScore for animation
   const circumference = 2 * Math.PI * 64; // radius = 64 for 140px circle
-  const progress = (score / 100) * circumference;
+  const progressValue = (displayedScore / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -81,15 +113,15 @@ export function ScoreBadge({ score, size = 'lg' }: ScoreBadgeProps) {
             strokeWidth="12"
             fill="none"
             strokeLinecap="round"
-            strokeDasharray={`${progress} ${circumference}`}
-            className="transition-all duration-1000 ease-out"
+            strokeDasharray={`${progressValue} ${circumference}`}
+            className="transition-none"
           />
         </svg>
 
         {/* Score text */}
         <div className="flex flex-col items-center gap-1">
           <span className={cn('font-black leading-none text-white', textSizes[size])}>
-            {score}
+            {displayedScore}
           </span>
           <span className="text-[13px] text-gray-400">/100</span>
         </div>

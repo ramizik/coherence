@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, FileDown, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowLeft, FileDown, Loader2, RefreshCw, Trophy } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchResults, generateReport, getVideoStreamUrl, VideoAnalysisError } from '../../lib/api';
 import { mockAnalysisResult, type AnalysisResult } from '../../lib/mock-data';
@@ -122,6 +122,68 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
     } finally {
       setIsGeneratingReport(false);
     }
+  };
+
+  // Find best moment - prioritize LOW severity (positive) flags
+  const findBestMoment = (): number => {
+    if (!result) return 0;
+    const flags = result.dissonanceFlags;
+
+    // Priority 1: LOW severity flags (positive moments)
+    const positiveFlags = flags.filter(f => f.severity === 'LOW');
+    if (positiveFlags.length > 0) {
+      return positiveFlags[0].timestamp;
+    }
+
+    // Priority 2: Longest gap between HIGH severity flags
+    const highFlags = [...flags]
+      .filter(f => f.severity === 'HIGH')
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    if (highFlags.length >= 2) {
+      let maxGap = 0;
+      let bestTimestamp = result.duration / 2;
+      for (let i = 0; i < highFlags.length - 1; i++) {
+        const gap = highFlags[i + 1].timestamp - highFlags[i].timestamp;
+        if (gap > maxGap) {
+          maxGap = gap;
+          bestTimestamp = (highFlags[i].timestamp + highFlags[i + 1].timestamp) / 2;
+        }
+      }
+      if (maxGap > 10) return bestTimestamp;
+    }
+
+    // Fallback: Middle of video
+    return result.duration / 2;
+  };
+
+  // Find worst moment - prioritize HIGH severity flags
+  const findWorstMoment = (): number => {
+    if (!result) return 0;
+    const flags = result.dissonanceFlags;
+
+    // Priority 1: First HIGH severity flag
+    const highFlag = flags.find(f => f.severity === 'HIGH');
+    if (highFlag) return highFlag.timestamp;
+
+    // Priority 2: First MEDIUM severity flag
+    const mediumFlag = flags.find(f => f.severity === 'MEDIUM');
+    if (mediumFlag) return mediumFlag.timestamp;
+
+    // Fallback: Start of video
+    return 0;
+  };
+
+  // Jump to best moment handler
+  const handleJumpToBest = () => {
+    const timestamp = findBestMoment();
+    handleSeek(timestamp);
+  };
+
+  // Jump to worst moment handler
+  const handleJumpToWorst = () => {
+    const timestamp = findWorstMoment();
+    handleSeek(timestamp);
   };
 
   // Handle scroll to detect when user reaches bottom of coaching insights
@@ -271,15 +333,35 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
             )}
           </div>
 
-          {/* Compact Metrics Bar with Download Report Button */}
+          {/* Compact Metrics Bar with Action Buttons */}
           <div className="pt-6 border-t border-white/[0.08] flex items-center justify-between">
             <CompactMetrics metrics={result.metrics} />
 
-            {/* Download Report Button */}
+            {/* Action Buttons */}
             <div className="flex items-center gap-3">
               {reportError && (
                 <span className="text-red-400 text-sm">{reportError}</span>
               )}
+
+              {/* Jump to Best Moment */}
+              <button
+                onClick={handleJumpToBest}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Best Moment</span>
+              </button>
+
+              {/* Review Weakest Moment */}
+              <button
+                onClick={handleJumpToWorst}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span>Weakest Moment</span>
+              </button>
+
+              {/* Download Report Button */}
               <button
                 onClick={handleGenerateReport}
                 disabled={isGeneratingReport}

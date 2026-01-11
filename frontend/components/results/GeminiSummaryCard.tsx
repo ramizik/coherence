@@ -103,7 +103,7 @@ export function GeminiSummaryCard({ coachingAdvice, headline }: GeminiSummaryCar
           </div>
 
           <span style={{ fontSize: '10px', color: '#6b7280' }}>
-            Powered by Gemini 1.5 Pro
+            Powered by Gemini
           </span>
 
           <div style={{ flex: 1 }} />
