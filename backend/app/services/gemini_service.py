@@ -51,55 +51,65 @@ def _build_coaching_prompt(
 
     result_dict = synthesis_result.to_dict()
     score = result_dict.get('overall_coherence_score', 0)
-    strengths = result_dict.get('strengths', [])
-    priorities = result_dict.get('top_3_priorities', [])
     metrics = result_dict.get('metrics', {})
     flags = result_dict.get('dissonance_flags', [])
 
-    # Get speech metrics
+    # Convert metrics to qualitative descriptions (NO numbers)
     filler_count = metrics.get('fillerWords', 0)
     speaking_pace = metrics.get('speakingPace', 150)
     eye_contact = metrics.get('eyeContact', 70)
     fidgeting = metrics.get('fidgeting', 0)
 
-    # Build context about detected issues
-    issues_context = []
-    for flag in flags[:3]:  # Top 3 issues
-        issues_context.append(
-            f"- At {flag.get('timestamp', 0):.0f}s: {flag.get('description', '')}"
-        )
+    # Qualitative assessments
+    eye_contact_quality = "excellent" if eye_contact >= 80 else "good" if eye_contact >= 60 else "could use some work"
+    filler_quality = "very few filler words" if filler_count <= 3 else "some filler words" if filler_count <= 8 else "quite a few filler words"
+    pace_quality = "good pace" if 130 <= speaking_pace <= 170 else "a bit fast" if speaking_pace > 170 else "a bit slow"
+    fidget_quality = "calm and composed" if fidgeting <= 2 else "some nervous movements" if fidgeting <= 6 else "noticeable fidgeting"
 
-    prompt = f"""You are a friendly, supportive presentation coach giving feedback to someone who just practiced their presentation. Write natural, conversational advice as if you're talking directly to them.
+    # Overall assessment
+    if score >= 80:
+        overall = "This was a strong presentation overall."
+    elif score >= 60:
+        overall = "This was a solid presentation with room to grow."
+    elif score >= 40:
+        overall = "There's good potential here with some areas to work on."
+    else:
+        overall = "This is a great starting point for improvement."
 
-ANALYSIS DATA:
-- Coherence Score: {score}/100
-- Eye Contact: {eye_contact}%
-- Filler Words: {filler_count}
-- Speaking Pace: {speaking_pace} WPM (optimal: 140-160)
-- Fidgeting Instances: {fidgeting}
+    # Build qualitative issues (no timestamps or numbers)
+    issues_natural = []
+    for flag in flags[:2]:  # Top 2 issues only
+        desc = flag.get('description', '')
+        # Strip any numbers from description
+        if desc:
+            issues_natural.append(desc.split('(')[0].strip())  # Remove anything in parentheses
 
-STRENGTHS DETECTED:
-{chr(10).join(f"- {s}" for s in strengths) if strengths else "- Good effort overall"}
+    prompt = f"""You are a warm, encouraging presentation coach giving feedback to someone who just practiced. Write like you're having a friendly conversation with them.
 
-AREAS TO IMPROVE:
-{chr(10).join(f"- {p}" for p in priorities) if priorities else "- Keep practicing"}
+WHAT I OBSERVED:
+- Overall: {overall}
+- Eye contact: {eye_contact_quality}
+- Speech: {filler_quality}, {pace_quality}
+- Body language: {fidget_quality}
+{f"- Notable moments: {', '.join(issues_natural)}" if issues_natural else ""}
 
-SPECIFIC MOMENTS TO ADDRESS:
-{chr(10).join(issues_context) if issues_context else "- No major issues detected"}
+Write 4-5 sentences of natural coaching advice.
 
-INSTRUCTIONS:
-Write 4-6 sentences of coaching advice that:
-1. Starts with something positive they did well
-2. Naturally transitions to 1-2 key areas to improve
-3. Gives specific, actionable tips they can use immediately
-4. Ends with encouragement
+CRITICAL RULES:
+1. DO NOT include ANY numbers, percentages, counts, or statistics
+2. DO NOT say things like "X instances", "Y%", "Z words per minute"
+3. DO NOT use parentheses with metrics
+4. Write EXACTLY like a human coach would speak - warm, natural, conversational
+5. Start with genuine praise for something specific they did well
+6. Mention 1-2 areas to improve using descriptive language only
+7. Give one concrete tip they can try next time
+8. End with encouragement
 
-IMPORTANT:
-- Write in second person ("you did great", "try to...")
-- Be warm and encouraging, not critical
-- Sound like a real coach talking, not a formal report
-- Don't use bullet points or headers - just flowing sentences
-- Keep it concise - this will be displayed in a small card
+EXAMPLE OF GOOD OUTPUT:
+"You've got a really engaging presence on camera! I especially liked how you maintained eye contact throughout most of your presentation - that really helps connect with your audience. One thing to work on: I noticed you tend to speed up when you get to the exciting parts. Try taking a breath before your key points to let them land. You're doing great, and with a little more practice on pacing, you'll be even more compelling!"
+
+EXAMPLE OF BAD OUTPUT (never do this):
+"Great job! You had 85% eye contact and only 3 filler words (um, uh). Your speaking pace was 156 WPM which is within the optimal range of 140-160. You fidgeted 2 times. Keep practicing!"
 
 Write ONLY the coaching advice, nothing else:"""
 
@@ -145,64 +155,87 @@ def _generate_fallback_coaching(
     synthesis_result: "SynthesisResult",
     deepgram_data: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Generate fallback coaching advice when Gemini is unavailable."""
+    """Generate fallback coaching advice when Gemini is unavailable.
 
+    Uses fully natural language without any numbers or statistics.
+    """
     result_dict = synthesis_result.to_dict()
     score = result_dict.get('overall_coherence_score', 0)
-    strengths = result_dict.get('strengths', [])
-    priorities = result_dict.get('top_3_priorities', [])
     metrics = result_dict.get('metrics', {})
 
-    # Build natural-sounding fallback
-    parts = []
-
-    # Positive opening
-    if strengths:
-        parts.append(f"Great job on your presentation! Your {strengths[0].lower()} really stood out.")
-    else:
-        parts.append("Nice work on your presentation practice!")
-
-    # Score context
-    if score >= 80:
-        parts.append("You're doing really well overall.")
-    elif score >= 60:
-        parts.append("You're on the right track with some room to polish.")
-    else:
-        parts.append("There are a few areas we can work on together.")
-
-    # Key improvement
-    if priorities:
-        parts.append(f"The main thing I'd focus on is: {priorities[0].lower()}.")
-
-    # Specific tip based on metrics
+    # Get metrics for qualitative assessment
     filler_count = metrics.get('fillerWords', 0)
     speaking_pace = metrics.get('speakingPace', 150)
+    eye_contact = metrics.get('eyeContact', 70)
+    fidgeting = metrics.get('fidgeting', 0)
 
+    parts = []
+
+    # Natural positive opening based on what went well
+    if eye_contact >= 70:
+        parts.append("Great job on your presentation! You did a wonderful job maintaining eye contact with the camera, which really helps connect with your audience.")
+    elif speaking_pace >= 130 and speaking_pace <= 170:
+        parts.append("Nice work on your presentation! Your pacing was really natural and easy to follow.")
+    elif filler_count <= 5:
+        parts.append("Great job on your presentation! You spoke clearly and confidently throughout.")
+    else:
+        parts.append("Nice effort on your presentation practice! There's a lot of potential here.")
+
+    # Add context based on overall score (no numbers)
+    if score >= 80:
+        parts.append("Overall, this was a really polished delivery.")
+    elif score >= 60:
+        parts.append("You're definitely on the right track, with just a few areas to fine-tune.")
+    elif score >= 40:
+        parts.append("With some focused practice on a couple of key areas, you'll see big improvements.")
+    else:
+        parts.append("Everyone starts somewhere, and you've got a solid foundation to build on.")
+
+    # Natural improvement suggestions (no numbers ever)
     if filler_count > 10:
-        parts.append("Try pausing instead of using filler words - a brief silence is more powerful than 'um' or 'uh'.")
+        parts.append("One thing to work on: try replacing filler words with brief pauses. A moment of silence actually sounds more confident than 'um' or 'uh'.")
+    elif fidgeting > 5:
+        parts.append("I noticed some nervous movement - try resting your hands in one position or using purposeful gestures to channel that energy.")
     elif speaking_pace > 170:
-        parts.append("You might want to slow down a bit to let your key points land with the audience.")
+        parts.append("You tend to speed up at times - try taking a breath before your key points to let them really land with your audience.")
     elif speaking_pace < 130:
-        parts.append("Try picking up the pace slightly to keep your audience engaged.")
+        parts.append("Consider picking up the energy a bit - varying your pace can help keep your audience engaged.")
+    elif eye_contact < 60:
+        parts.append("Try to look at the camera more often - it creates a connection with your audience even through the screen.")
+    else:
+        parts.append("Keep refining the small details and your delivery will become even more natural.")
 
     # Encouraging close
-    parts.append("Keep practicing and you'll see great improvement!")
+    parts.append("Keep practicing and trust the process - you're making great progress!")
 
     return " ".join(parts)
 
 
-def _generate_headline(score: int) -> str:
-    """Generate a short headline based on the score."""
+def _generate_headline(score: int, metrics: Dict[str, Any]) -> str:
+    """Generate a natural headline based on overall assessment."""
+    eye_contact = metrics.get('eyeContact', 70)
+    filler_count = metrics.get('fillerWords', 0)
+    fidgeting = metrics.get('fidgeting', 0)
+
+    # Pick headline based on strongest attribute or overall impression
     if score >= 85:
-        return "Excellent presentation skills!"
+        if eye_contact >= 80:
+            return "Confident and engaging delivery!"
+        return "Polished presentation skills!"
     elif score >= 70:
-        return "Strong performance with minor tweaks needed"
+        if filler_count <= 3:
+            return "Clear and articulate speaker"
+        return "Strong delivery with room to shine"
     elif score >= 55:
-        return "Good foundation, keep practicing"
+        if eye_contact >= 70:
+            return "Good presence, refining the details"
+        return "Solid foundation to build on"
     elif score >= 40:
-        return "Making progress, focus on key areas"
+        if fidgeting <= 3:
+            return "Finding your voice"
+        return "Growing as a presenter"
     else:
-        return "Let's work on the fundamentals"
+        return "Every expert was once a beginner"
 
 
 async def generate_coaching_report(
@@ -269,7 +302,8 @@ async def generate_coaching_report(
 
         # Generate headline
         score = result_dict.get('overall_coherence_score', 50)
-        headline = _generate_headline(score)
+        metrics = result_dict.get('metrics', {})
+        headline = _generate_headline(score, metrics)
 
         report = GeminiReport(
             coachingAdvice=coaching_advice,

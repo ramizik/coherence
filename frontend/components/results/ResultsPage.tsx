@@ -184,31 +184,31 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
 
         {/* Header with Score and Video Info */}
         <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.08] rounded-2xl p-8 mb-8">
-          <div className="flex items-start justify-between gap-8 mb-6">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '32px', marginBottom: '24px' }}>
 
             {/* Left: Score Badge + Video Info */}
-            <div className="flex items-center gap-8 flex-1 min-w-0">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '32px', flex: '1 1 0%', minWidth: 0 }}>
               {/* Score Badge */}
-              <div className="flex-shrink-0">
+              <div style={{ flexShrink: 0 }}>
                 <ScoreBadge score={result.coherenceScore} size="lg" />
               </div>
 
               {/* Video Info */}
-              <div className="flex-1 min-w-0">
+              <div style={{ flex: '1 1 0%', minWidth: 0 }}>
                 <h1 className="text-[20px] font-bold text-white mb-3 truncate">
                   {result.videoTitle}
                 </h1>
                 <div className="flex items-center gap-4 text-[13px] text-gray-400">
                   <span>Analyzed {result.uploadDate}</span>
                   <span>•</span>
-                  <span>Duration: {Math.floor(result.duration / 60)}:{(result.duration % 60).toString().padStart(2, '0')}</span>
+                  <span>Duration: {Math.floor(result.duration / 60)}:{Math.floor(result.duration % 60).toString().padStart(2, '0')}</span>
                 </div>
               </div>
             </div>
 
             {/* Right: Gemini AI Summary Card */}
             {result.geminiReport && (
-              <div className="flex-shrink-0">
+              <div style={{ flexShrink: 0, width: '520px' }}>
                 <GeminiSummaryCard
                   coachingAdvice={result.geminiReport.coachingAdvice}
                   headline={result.geminiReport.headline}
