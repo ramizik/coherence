@@ -10,6 +10,11 @@
 
 You are assisting in building **Coherence**, an AI-powered presentation coaching platform that detects visual-verbal dissonance. This is a **production-ready SaaS product** being built for real users, not a hackathon demo.
 
+Coherence operates in a competitive market with players like **Yoodli, Orai, Poised, and Verble**. Your job is to help build a product that:
+- Focuses on **visual-verbal dissonance** (authenticity and alignment), not just raw metrics.
+- Respects user privacy and safety.
+- Is differentiated enough to stand alongside established tools.
+
 ### Core Operating Principles
 
 1. **Production-First Engineering:** Every decision optimizes for scalability, reliability, and user experience
@@ -25,8 +30,38 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 - 99.9% uptime
 - User activation rate >60%
 - Cost per analysis is optimized
+ - Product metrics: 30-day retention >40%, NPS trending positive, paying users growing month-over-month
 
 ---
+
+## 🌍 Product & Market Context
+
+### Competitive Landscape (Mental Model)
+
+- **Yoodli (primary competitor)** – 100k+ professionals, used by Toastmasters, strong integrations (Zoom/Meet/Teams) and now body language analysis powered by Google Cloud.
+- **Orai** – Mobile speech coach focusing on filler words, pacing, conciseness.
+- **Poised** – Real-time meeting feedback with strong privacy messaging.
+- **Verble** – AI speech-writing and storytelling assistant.
+
+### Coherence’s Unique Value Proposition
+
+Coherence focuses on **visual-verbal dissonance** – the misalignment between what you say and how you appear:
+
+- Saying “I’m excited” with flat or anxious affect (**EMOTIONAL_MISMATCH**).
+- Saying “look at this chart” without pointing (**MISSING_GESTURE**).
+- Rushing dense content (**PACING_MISMATCH**) where slide density and speaking speed don’t match.
+
+We care less about raw metrics like “percent eye contact” in isolation and more about **contradictions that undermine trust and credibility**.
+
+### Positioning vs. Yoodli
+
+- **Yoodli:** “Grammarly for speech” – real-time meeting coach for live calls and everyday communication.
+- **Coherence:** “Authenticity coach” – deep post-analysis of prepared presentations, pitches, and interviews.
+
+When making design or architecture choices, prefer options that:
+- Improve the **quality and clarity** of dissonance insights.
+- Reinforce the “authenticity” and “private coach” positioning.
+- Avoid over-indexing on features that just mimic competition (e.g. generic real-time tips) unless they support our core story.
 
 ## 🏗️ Project Context
 
@@ -41,10 +76,9 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 
 **Backend:**
 - FastAPI (Python 3.10+)
-- PostgreSQL database (or MongoDB)
-- Celery/RQ for background jobs
-- Redis for caching and sessions
-- Cloud storage (S3/GCS) for videos
+- Supabase (PostgreSQL + Auth + Storage + Realtime)
+- Celery + Redis (Upstash) for background jobs
+- Google Cloud Run for deployment
 
 **AI Services (Flexible - Evaluate Best Options):**
 - Video Analysis: TwelveLabs (current) or alternatives
@@ -55,9 +89,9 @@ You are assisting in building **Coherence**, an AI-powered presentation coaching
 
 ### Architecture Philosophy
 
-- **Database over in-memory:** Persistent storage for all data
-- **Queue over sync:** Background jobs for video processing
-- **Cloud storage over local:** Scalable file storage
+- **Database over in-memory:** Supabase PostgreSQL for persistent storage
+- **Queue over sync:** Celery + Redis for background video processing
+- **Supabase Storage over S3:** Built-in storage with RLS policies
 - **Mobile-first over desktop:** Design for mobile, enhance for desktop
 - **Scalable over simple:** Architecture should support growth
 
@@ -406,6 +440,53 @@ We launch with the current TwelveLabs + Deepgram + Gemini stack, but **optimize 
 - **Mitigation:** Mobile-first design, test on real devices
 - **Monitoring:** Mobile usage metrics, error rates
 
+**Risk:** Users feel judged or unsafe sharing videos
+- **Mitigation:** “Private, judgment-free coach” positioning in UI copy and flows
+- **Monitoring:** Qualitative feedback from interviews, support tickets, churn reasons
+
+**Risk:** Misinterpretation of AI feedback as absolute truth
+- **Mitigation:** Clear disclaimers that AI is a coach, not a therapist or clinical assessor
+- **Monitoring:** User feedback and potential complaints
+
+---
+
+## 🔒 Ethics, Privacy & Safety
+
+Agents must treat privacy and ethics as **non-negotiable**:
+
+### Data Privacy & Control
+
+- Always assume:
+  - Users must give **explicit consent** before their video is analyzed.
+  - Users must be able to **delete** videos and analysis results permanently.
+  - No user data is shared with third parties without clear, informed consent.
+- When suggesting features, consider:
+  - Where data is stored (S3/GCS with encryption at rest).
+  - How long it is retained and how it can be removed.
+
+### Transparency
+
+- Make it clear what we analyze (visual + verbal + timing) and what limitations exist.
+- Avoid overstating accuracy; propose UI that:
+  - Uses human-readable language (“we think…”, “likely…”) instead of absolute claims.
+  - Optionally surfaces confidence levels for more nuanced events.
+
+### Security
+
+- Design with:
+  - Encrypted storage and secure streaming (signed URLs or authenticated endpoints).
+  - A path toward SOC 2 and GDPR compliance.
+- Never propose shortcuts that compromise secrets (API keys, JWT secrets) or user data.
+
+### Bias Mitigation
+
+- When proposing AI changes, consider:
+  - Testing across diverse speakers (ethnicity, gender, age, accent).
+  - Avoiding facial-expression-only judgments; always tie to context where possible.
+  - Adding UI copy that acknowledges cultural variation in body language.
+
+If a feature idea might increase bias risk or misinterpretation, **call it out** and propose mitigations.
+
 ---
 
 ## 📝 Response Guidelines
@@ -726,3 +807,6 @@ Use these specializations as needed:
 - typescript-pro: types, generics, inference, avoiding unsafe casts.
 - ui-designer: layout, spacing, typography, a11y, and mobile-first design.
 - code-reviewer: PR-level feedback; keep suggestions actionable and prioritized.
+- data-engineer: data pipelines, ETL/ELT processes, data infrastructure, streaming, data lake/warehouse design. Use when building analytics pipelines, optimizing data processing, or designing scalable data architectures.
+- database-administrator: database performance optimization, high availability, backup/recovery, replication, query tuning. Use when optimizing Supabase PostgreSQL performance, setting up replication, or troubleshooting database issues.
+- llm-architect: LLM system design, fine-tuning strategies, RAG implementation, production serving, model optimization. Use when designing AI service abstractions, optimizing Gemini/LLM usage, implementing RAG for coaching synthesis, or evaluating LLM alternatives.

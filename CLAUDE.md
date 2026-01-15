@@ -28,9 +28,9 @@ You are assisting backend development for **Coherence**, an AI-powered presentat
 
 ### Backend Framework
 - **Framework:** FastAPI (Python 3.10+)
-- **Database:** PostgreSQL (recommended) or MongoDB
-- **Queue:** Celery + Redis or RQ for background jobs
-- **Storage:** Cloud storage (S3/GCS/Azure Blob) for videos
+- **Database & Auth:** Supabase (PostgreSQL + Auth + Storage + Realtime)
+- **Queue:** Celery + Redis (Upstash) for background jobs
+- **Storage:** Supabase Storage (built-in, replaces S3/GCS)
 - **Cache:** Redis for caching and sessions
 
 ### AI Services (Flexible - Evaluate Best Options)
@@ -109,34 +109,31 @@ class OpenAIProvider(VideoAnalysisProvider):
 backend/
 ├── __init__.py
 ├── cli.py                     # CLI tool for testing
-├── alembic/                   # Database migrations
-│   ├── versions/
-│   └── env.py
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                # FastAPI app entry
-│   ├── config.py              # Configuration management
-│   ├── dependencies.py        # Dependency injection
+│   ├── config.py              # Configuration management (Supabase keys)
+│   ├── dependencies.py        # Dependency injection (Supabase client, auth)
 │   ├── middleware/
-│   │   ├── auth.py            # Authentication middleware
+│   │   ├── auth.py            # Supabase JWT verification middleware
 │   │   ├── error_handler.py   # Error handling
 │   │   └── rate_limit.py      # Rate limiting
 │   ├── routers/
-│   │   ├── auth.py            # Authentication endpoints
+│   │   ├── auth.py            # Auth endpoints (optional, Supabase handles most)
 │   │   ├── users.py           # User management
 │   │   ├── videos.py          # Video endpoints
 │   │   └── analytics.py        # Analytics endpoints
 │   ├── services/
 │   │   ├── auth_service.py    # Authentication logic
 │   │   ├── video_service.py   # Video processing
-│   │   ├── storage_service.py # Cloud storage
+│   │   ├── storage_service.py # Supabase Storage integration
 │   │   └── ai/                # AI service abstraction
 │   │       ├── base.py         # Abstract base classes
 │   │       ├── twelvelabs_provider.py
 │   │       ├── deepgram_provider.py
 │   │       └── gemini_provider.py
 │   ├── models/
-│   │   ├── database.py        # SQLAlchemy models
+│   │   ├── database.py        # Supabase table schemas (reference only)
 │   │   └── schemas.py         # Pydantic schemas
 │   ├── tasks/
 │   │   └── video_processing.py # Celery tasks
@@ -156,13 +153,17 @@ backend/
 
 ### Authentication
 
+**Note:** Supabase handles authentication on the frontend. Backend only verifies JWT tokens.
+
 ```
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/refresh
-POST /api/auth/logout
-GET  /api/auth/me
+GET  /api/auth/me              # Get current user (JWT verification)
 ```
+
+**Frontend uses Supabase SDK:**
+- `supabase.auth.signUp()` - Registration
+- `supabase.auth.signInWithPassword()` - Login
+- `supabase.auth.signOut()` - Logout
+- `supabase.auth.getSession()` - Get current session
 
 ### Users
 
@@ -310,102 +311,129 @@ class AIConfig:
 
 ## 📊 Database Models
 
-### Core Models
+### Supabase Tables
+
+**Note:** Tables are created in Supabase dashboard. Use Supabase client to query.
+
+```sql
+-- Videos table (created in Supabase dashboard)
+CREATE TABLE videos (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  storage_path TEXT NOT NULL,
+  duration_seconds INTEGER,
+  status TEXT CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Analyses table
+CREATE TABLE analyses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  video_id UUID REFERENCES videos(id) ON DELETE CASCADE,
+  coherence_score INTEGER,
+  score_tier TEXT,
+  metrics JSONB,
+  dissonance_flags JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security
+ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;
+```
+
+### Pydantic Schemas (for API responses)
 
 ```python
-# backend/app/models/database.py
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+# backend/app/models/schemas.py
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
 
-class User(Base):
-    __tablename__ = "users"
+class Video(BaseModel):
+    id: str
+    user_id: str
+    storage_path: str
+    duration_seconds: Optional[int]
+    status: str
+    created_at: datetime
 
-    id = Column(String, primary_key=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    created_at = Column(DateTime)
-
-    videos = relationship("Video", back_populates="user")
-
-class Video(Base):
-    __tablename__ = "videos"
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"))
-    storage_path = Column(String)
-    duration_seconds = Column(Integer)
-    status = Column(String)  # queued, processing, complete, error
-    created_at = Column(DateTime)
-
-    user = relationship("User", back_populates="videos")
-    analysis = relationship("Analysis", back_populates="video", uselist=False)
-
-class Analysis(Base):
-    __tablename__ = "analyses"
-
-    id = Column(String, primary_key=True)
-    video_id = Column(String, ForeignKey("videos.id"))
-    coherence_score = Column(Integer)
-    score_tier = Column(String)
-    created_at = Column(DateTime)
-
-    video = relationship("Video", back_populates="analysis")
-    metrics = relationship("AnalysisMetrics", back_populates="analysis")
-    flags = relationship("DissonanceFlag", back_populates="analysis")
+class Analysis(BaseModel):
+    id: str
+    video_id: str
+    coherence_score: int
+    score_tier: str
+    metrics: dict
+    dissonance_flags: list
+    created_at: datetime
 ```
 
 ---
 
 ## 🔐 Authentication & Authorization
 
-### JWT-Based Authentication
+### Supabase JWT Verification
+
+**Supabase handles authentication on the frontend.** Backend only verifies JWT tokens.
 
 ```python
-# backend/app/services/auth_service.py
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+# backend/app/dependencies.py
+from supabase import create_client, Client
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Initialize Supabase client
+supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+security = HTTPBearer()
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: timedelta) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-```
-
-### Authorization Middleware
-
-```python
-# backend/app/middleware/auth.py
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials"
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> dict:
+    """
+    Verify Supabase JWT token and return user.
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None:
-        raise credentials_exception
-    return user
+    Args:
+        credentials: HTTP Bearer token from request header
+
+    Returns:
+        User object from Supabase
+
+    Raises:
+        HTTPException: If token is invalid
+    """
+    try:
+        # Supabase verifies JWT and returns user
+        user = supabase.auth.get_user(credentials.credentials)
+        return user.user
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
 ```
+
+### Row Level Security (RLS)
+
+**RLS policies are defined in Supabase SQL, not in Python code:**
+
+```sql
+-- Users can only view their own videos
+CREATE POLICY "Users can view own videos"
+ON videos FOR SELECT
+USING (auth.uid() = user_id);
+
+-- Users can only insert their own videos
+CREATE POLICY "Users can insert own videos"
+ON videos FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+```
+
+**Benefits:**
+- Security enforced at database level
+- No need for manual access control checks in Python
+- Works even if someone bypasses the API
 
 ---
 
@@ -566,19 +594,25 @@ logger.addHandler(handler)
 1. **Set up environment:**
    ```bash
    python -m venv venv
-   source venv/bin/activate
+   source venv/bin/activate  # or: .\venv\Scripts\Activate.ps1 on Windows
    pip install -r requirements.txt
    ```
 
-2. **Set up database:**
-   ```bash
-   alembic upgrade head
-   ```
+2. **Set up Supabase:**
+   - Create project at [supabase.com](https://supabase.com/)
+   - Copy project URL and anon key
+   - Create tables via Supabase dashboard (see ROADMAP.md Day 1)
+   - No migrations needed - Supabase handles schema changes
 
-3. **Run migrations:**
+3. **Configure environment variables:**
    ```bash
-   alembic revision --autogenerate -m "description"
-   alembic upgrade head
+   # .env file
+   SUPABASE_URL=https://xxx.supabase.co
+   SUPABASE_KEY=eyJxxx...  # Service role key for backend
+   REDIS_URL=redis://localhost:6379  # or Upstash URL
+   TWELVELABS_API_KEY=xxx
+   DEEPGRAM_API_KEY=xxx
+   GEMINI_API_KEY=xxx
    ```
 
 4. **Run tests:**
@@ -591,6 +625,11 @@ logger.addHandler(handler)
    uvicorn app.main:app --reload
    ```
 
+6. **Start Celery worker (separate terminal):**
+   ```bash
+   celery -A app.tasks.celery_app worker --loglevel=info
+   ```
+
 ### Code Review Checklist
 
 - [ ] Type hints on all functions
@@ -598,7 +637,7 @@ logger.addHandler(handler)
 - [ ] Tests added/updated
 - [ ] Error handling implemented
 - [ ] Logging added for important operations
-- [ ] Database migrations tested
+- [ ] Supabase schema changes tested
 - [ ] API documentation updated
 
 ---
@@ -638,14 +677,15 @@ When assisting:
 ## 🎯 Acceptance Criteria
 
 Backend is production-ready when:
-- ✅ Authentication and authorization implemented
-- ✅ Database persistence for all data
-- ✅ Background jobs process videos reliably
+- ✅ Supabase authentication integrated (JWT verification)
+- ✅ Row Level Security (RLS) policies configured
+- ✅ Supabase Storage for video files
+- ✅ Background jobs process videos reliably (Celery + Redis)
 - ✅ Error handling and logging comprehensive
 - ✅ API is documented and versioned
 - ✅ Tests cover critical paths (80%+ coverage)
-- ✅ Monitoring and alerting configured
-- ✅ Security best practices followed
+- ✅ Monitoring and alerting configured (Sentry, Cloud Run metrics)
+- ✅ Security best practices followed (RLS, input validation)
 
 **Your mission:** Build a scalable, maintainable backend that enables confident presentations for millions of users.
 
@@ -677,6 +717,9 @@ Use these specializations as needed:
 - typescript-pro: types, generics, inference, avoiding unsafe casts.
 - ui-designer: layout, spacing, typography, a11y, and shadcn-consistent UI.
 - code-reviewer: PR-level feedback; keep suggestions actionable and prioritized.
+- data-engineer: data pipelines, ETL/ELT processes, data infrastructure, streaming, data lake/warehouse design. Use when building analytics pipelines, optimizing video processing data flows, or designing scalable data architectures for user analytics.
+- database-administrator: database performance optimization, high availability, backup/recovery, replication, query tuning. Use when optimizing Supabase PostgreSQL queries, setting up replication for high availability, configuring RLS policies, or troubleshooting database performance issues.
+- llm-architect: LLM system design, fine-tuning strategies, RAG implementation, production serving, model optimization. Use when designing AI service abstraction layers, optimizing Gemini usage for coaching synthesis, implementing RAG for context-aware coaching, evaluating LLM alternatives, or optimizing token usage and costs.
 
 ---
 

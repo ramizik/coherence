@@ -21,6 +21,54 @@ Coherence is an AI platform that detects **visual-verbal dissonance** — when y
 
 ---
 
+## 🧩 Competitive Landscape & Differentiation
+
+### Direct Competitors
+
+- **Yoodli (primary competitor)** – 100k+ professionals, powered by Google Cloud, with:
+  - Real-time speech coaching during live calls
+  - Filler word detection and pacing analysis
+  - Body language scoring (added in 2024)
+  - Integrations with Zoom, Google Meet, and Teams
+  - Strong adoption via Toastmasters (300k+ members)
+- **Orai** – Mobile-focused speech coach (filler words, pacing, conciseness)
+- **Poised** – Real-time feedback during meetings with privacy focus
+- **Verble** – AI speech-writing assistant for persuasion and storytelling
+
+### Coherence’s Unique Value Proposition
+
+Most tools (including Yoodli) track **body language metrics** and **audio metrics** separately.
+Coherence focuses on **visual-verbal dissonance** – the misalignment between what you say and how you appear:
+
+- Saying “I’m excited” with flat or anxious affect (**emotional mismatch**)
+- Saying “look at this chart” without pointing (**missing gesture**)
+- Rushing through dense content (**pacing mismatch**) where slide density and speaking speed don’t match
+
+Instead of just counting “% eye contact” or “number of gestures”, Coherence detects **contradictions** that undermine credibility and trust.
+
+### Positioning vs. Yoodli
+
+- **Yoodli’s positioning:** “Grammarly for speech” – real-time meeting coach for everyday communication.
+- **Coherence’s positioning:** “Authenticity coach” – deep post-analysis of how well your message and delivery align.
+
+**Yoodli focus:** Live calls, meeting integrations, real-time tips.
+**Coherence focus:** Prepared presentations, recorded pitches, interviews, and keynotes with:
+
+- Semantic context matching between transcript and visual behavior
+- Timestamped coaching linked to specific moments of dissonance
+- Emphasis on **authenticity** and **trust**, not just mechanical technique
+
+### Market Opportunity (High Level)
+
+- Global speech/presentation coaching market: **~$2.8B (2024)**, ~7–7.2% CAGR to 2032
+- Subscription-based models growing ~**28% annually**
+- Online platforms already account for **~42%** of all coaching sessions
+- **~30% of AI models by 2026** are expected to use multimodal learning (voice + visual + behavioral)
+
+Coherence is aligned with this macro trend toward multimodal coaching and can sustain a subscription price point (e.g. $19–49/month), especially for professionals and education partners.
+
+---
+
 ## 🏗️ Architecture
 
 ```
@@ -46,6 +94,7 @@ Coherence is an AI platform that detects **visual-verbal dissonance** — when y
 ### Technology Stack
 
 **Frontend**
+
 - Vite 6+ with React 18 - Build tool and UI framework
 - TypeScript - Type safety
 - TailwindCSS v4 - Mobile-first responsive design
@@ -54,14 +103,15 @@ Coherence is an AI platform that detects **visual-verbal dissonance** — when y
 - Progressive Web App (PWA) - Mobile app-like experience
 
 **Backend**
+
 - FastAPI - Python async web framework
-- PostgreSQL - Relational database
-- Celery/RQ - Background job processing
-- Redis - Caching and sessions
-- Cloud Storage (S3/GCS) - Video file storage
+- Supabase - PostgreSQL database + Authentication + Storage + Realtime
+- Celery + Redis (Upstash) - Background job processing
+- Google Cloud Run - Production deployment
 - Pydantic - Request/response validation
 
 **AI Services (Flexible - Evaluate Best Options)**
+
 - **Video Analysis:** TwelveLabs (current) or alternatives (OpenAI Vision, custom models)
 - **Speech Transcription:** Deepgram (current) or alternatives (Whisper, AssemblyAI)
 - **Coaching Synthesis:** Gemini (current) or alternatives (Claude, GPT-4)
@@ -73,19 +123,23 @@ Coherence is an AI platform that detects **visual-verbal dissonance** — when y
 ## 🎯 Key Features
 
 ### 1. Visual-Verbal Dissonance Detection
+
 Our AI pipeline analyzes video in parallel:
+
 - **Video Analysis:** Eye contact, fidgeting, gestures, facial expressions
 - **Speech Analysis:** Transcription, filler words ("um", "uh", "like"), speaking pace
 - **Coaching Synthesis:** Natural language coaching advice
 
 ### 2. Three Types of Dissonance Flags
-| Type | Description | Example |
-|------|-------------|---------|
+
+| Type                 | Description                                 | Example                          |
+| -------------------- | ------------------------------------------- | -------------------------------- |
 | `EMOTIONAL_MISMATCH` | Positive words with anxious/flat expression | Saying "thrilled" while frowning |
-| `MISSING_GESTURE` | Deictic phrases without pointing | "Look at this" without gesturing |
-| `PACING_MISMATCH` | Speaking too fast/slow for content | Rushing through dense material |
+| `MISSING_GESTURE`    | Deictic phrases without pointing            | "Look at this" without gesturing |
+| `PACING_MISMATCH`    | Speaking too fast/slow for content          | Rushing through dense material   |
 
 ### 3. Interactive Results Dashboard
+
 - **Video Player** with custom controls and seek functionality
 - **Dissonance Timeline** - Click severity markers to jump to timestamps
 - **Coaching Cards** - Dismissible insights with "Jump to Moment" buttons
@@ -93,7 +147,9 @@ Our AI pipeline analyzes video in parallel:
 - **Coaching Summary** - Natural language AI coaching advice
 
 ### 4. Coherence Score (0-100)
+
 Weighted algorithm:
+
 - Eye contact percentage: 30%
 - Filler word count: 25% (fewer = better)
 - Fidgeting frequency: 20% (fewer = better)
@@ -101,11 +157,13 @@ Weighted algorithm:
 - Dissonance penalties: -10 per HIGH, -5 per MEDIUM severity flag
 
 **Score Tiers:**
+
 - 76-100: "Strong"
 - 51-75: "Good Start"
 - 0-50: "Needs Work"
 
 ### 5. Mobile-First Design
+
 - Responsive layout for all screen sizes
 - Camera integration for mobile recording
 - Touch-optimized interactions
@@ -115,16 +173,16 @@ Weighted algorithm:
 
 ## 📡 API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `POST /api/auth/register` | POST | User registration | No |
-| `POST /api/auth/login` | POST | User login | No |
-| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) | Yes |
-| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) | Yes |
-| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results | Yes |
-| `GET /api/videos/{id}/stream` | GET | Stream video file for playback | Yes |
-| `GET /api/users/me/videos` | GET | List user's videos | Yes |
-| `GET /health` | GET | Health check endpoint | No |
+| Endpoint                       | Method | Description                            | Auth Required |
+| ------------------------------ | ------ | -------------------------------------- | ------------- |
+| `POST /api/auth/register`      | POST   | User registration                      | No            |
+| `POST /api/auth/login`         | POST   | User login                             | No            |
+| `POST /api/videos/upload`      | POST   | Upload video (MP4/MOV/WebM, max 500MB) | Yes           |
+| `GET /api/videos/{id}/status`  | GET    | Poll processing status (0-100%)        | Yes           |
+| `GET /api/videos/{id}/results` | GET    | Fetch complete analysis results        | Yes           |
+| `GET /api/videos/{id}/stream`  | GET    | Stream video file for playback         | Yes           |
+| `GET /api/users/me/videos`     | GET    | List user's videos                     | Yes           |
+| `GET /health`                  | GET    | Health check endpoint                  | No            |
 
 ### Sample API Response
 
@@ -156,7 +214,11 @@ Weighted algorithm:
     }
   ],
   "transcript": [
-    {"text": "Hello everyone, today I'm thrilled...", "start": 0.5, "end": 3.2}
+    {
+      "text": "Hello everyone, today I'm thrilled...",
+      "start": 0.5,
+      "end": 3.2
+    }
   ],
   "coachingReport": {
     "headline": "Solid foundation to build on",
@@ -170,13 +232,15 @@ Weighted algorithm:
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Python 3.10+
-- PostgreSQL (or MongoDB)
-- Redis (for background jobs)
+- Supabase account (free tier works for development)
+- Redis (Upstash free tier or local Redis)
 - API keys for AI services (TwelveLabs, Deepgram, Gemini - or alternatives)
 
 ### Frontend Setup
+
 ```bash
 # From repository root
 npm install
@@ -185,6 +249,7 @@ npm run dev
 ```
 
 ### Backend Setup
+
 ```bash
 # From repository root
 python -m venv venv
@@ -193,17 +258,13 @@ python -m venv venv
 
 pip install -r requirements.txt
 
-# Set up database
-alembic upgrade head
-
 # Create .env file in repository root with:
-# DATABASE_URL=postgresql://user:pass@localhost/coherence
-# REDIS_URL=redis://localhost:6379
+# SUPABASE_URL=https://xxx.supabase.co
+# SUPABASE_KEY=your_service_role_key
+# REDIS_URL=redis://localhost:6379 (or Upstash URL)
 # TWELVELABS_API_KEY=your_key (or alternative)
 # DEEPGRAM_API_KEY=your_key (or alternative)
 # GEMINI_API_KEY=your_key (or alternative)
-# SECRET_KEY=your_secret_key
-# CLOUD_STORAGE_BUCKET=your_bucket
 
 # Run backend server
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
@@ -215,28 +276,29 @@ celery -A backend.app.tasks.celery_app worker --loglevel=info
 ### Environment Variables (`.env` in repository root)
 
 ```env
-# Database
-DATABASE_URL=postgresql://user:pass@localhost/coherence
+# Supabase (Database + Auth + Storage)
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_KEY=your_service_role_key  # Service role key for backend
 
-# Redis
-REDIS_URL=redis://localhost:6379
+# Redis (for Celery background jobs)
+REDIS_URL=redis://localhost:6379  # or Upstash URL
 
 # AI Services (flexible - use alternatives if preferred)
 TWELVELABS_API_KEY=your_twelvelabs_key
 DEEPGRAM_API_KEY=your_deepgram_key
 GEMINI_API_KEY=your_gemini_key
 
-# Security
-SECRET_KEY=your_secret_key_for_jwt
-
-# Storage
-CLOUD_STORAGE_BUCKET=your_bucket_name
-CLOUD_STORAGE_PROVIDER=s3  # or gcs, azure
-
 # Optional: Service selection
 VIDEO_ANALYSIS_PROVIDER=twelvelabs  # or openai, custom
 SPEECH_PROVIDER=deepgram  # or whisper, assemblyai
 COACHING_PROVIDER=gemini  # or claude, gpt4
+```
+
+**Frontend Environment Variables** (for Vite):
+```env
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key  # Public anon key for frontend
+VITE_API_URL=http://localhost:8000  # Backend API URL
 ```
 
 ---
@@ -271,25 +333,21 @@ coherence/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app + CORS
-│   │   ├── config.py            # Configuration
+│   │   ├── config.py            # Configuration (Supabase keys)
+│   │   ├── dependencies.py      # Supabase client, auth dependencies
 │   │   ├── routers/
-│   │   │   ├── auth.py          # Authentication endpoints
 │   │   │   ├── users.py         # User management
-│   │   │   └── videos.py        # Video endpoints
+│   │   │   └── videos.py       # Video endpoints
 │   │   ├── services/
-│   │   │   ├── auth_service.py  # Authentication logic
 │   │   │   ├── video_service.py # Video processing
-│   │   │   ├── storage_service.py # Cloud storage
+│   │   │   ├── storage_service.py # Supabase Storage
 │   │   │   └── ai/              # AI service abstraction
 │   │   ├── models/
-│   │   │   ├── database.py     # SQLAlchemy models
-│   │   │   └── schemas.py      # Pydantic schemas
+│   │   │   └── schemas.py       # Pydantic schemas
 │   │   ├── middleware/
-│   │   │   ├── auth.py         # Auth middleware
 │   │   │   └── error_handler.py # Error handling
 │   │   └── tasks/
-│   │       └── video_processing.py # Background jobs
-│   ├── alembic/            # Database migrations
+│   │       └── video_processing.py # Celery background jobs
 │   ├── tests/              # Test suite
 │   └── cli.py              # CLI testing tool
 │
@@ -321,6 +379,39 @@ Upload Video ─┬─► Speech Analysis (5-10s)    ─┬─► Merge Results 
 
 ---
 
+## 🔒 Privacy, Safety & Ethics
+
+Coherence is designed to be a **private, judgment-free coach**. Key principles:
+
+### Data Privacy
+
+- Explicit user consent before any video is analyzed
+- Clear, human-readable privacy policy describing:
+  - What is collected (video, audio, derived metrics)
+  - How it is processed and for what purpose
+- Users can delete videos and analysis results permanently
+- No sharing of user data with third parties without explicit consent
+
+### Transparency
+
+- Explain what AI analyzes (visual + verbal + timing) and what it does **not** do
+- Communicate limitations of the system; this is coaching, not therapy or clinical assessment
+- Where appropriate, surface **confidence indicators** (e.g. low/medium/high confidence on certain detections)
+
+### Security
+
+- Encrypted storage for videos and analysis data (e.g. S3/GCS with encryption at rest)
+- Secure streaming with signed URLs or authenticated proxy endpoints
+- Path toward SOC 2 and GDPR compliance as the product matures
+
+### Bias Mitigation
+
+- Test across diverse speakers (ethnicity, gender, age, accent) during development and beta
+- Avoid training or depending on datasets with known bias in facial expression recognition
+- Provide context that body language varies by culture and emphasize **suggestive**, not prescriptive, feedback
+
+---
+
 ## 🎯 Development Roadmap
 
 See [ROADMAP.md](documentation/ROADMAP.md) for detailed development phases:
@@ -336,19 +427,21 @@ See [ROADMAP.md](documentation/ROADMAP.md) for detailed development phases:
 ## 🐛 Current Status
 
 **✅ Completed (Hackathon MVP):**
+
 - Core video analysis pipeline
 - Visual-verbal dissonance detection
 - Interactive results dashboard
 - Basic API endpoints
 
 **🚧 In Progress (Production):**
-- User authentication system
-- Database persistence
-- Cloud storage migration
-- Background job system
+
+- Supabase integration (Auth + Database + Storage)
+- Background job system (Celery + Redis)
 - Mobile-first responsive design
+- Google Cloud Run deployment
 
 **⏳ Planned:**
+
 - Advanced AI features
 - Team/group features
 - Integration with presentation tools
@@ -369,6 +462,7 @@ See [ROADMAP.md](documentation/ROADMAP.md) for detailed development phases:
 ## 🤝 Contributing
 
 This is a production startup project. For contributions, please:
+
 1. Check the current phase in [ROADMAP.md](documentation/ROADMAP.md)
 2. Follow code quality standards in [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md)
 3. Write tests for new features
