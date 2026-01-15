@@ -49,12 +49,18 @@ colors: {
 }
 ```
 
-### 4. **Desktop-First Development**
+### 4. **Mobile-First Development (CRITICAL)**
 
-- **Primary Target:** 1440px+ (laptop screens)
-- **Secondary:** 1920px (desktop)
-- **Mobile:** Nice-to-have, not priority
-- **Use `min-width` media queries**, not mobile-first approach
+- **Primary Target:** 320px - 767px (mobile phones)
+- **Secondary:** 768px - 1023px (tablets)
+- **Tertiary:** 1024px+ (desktop)
+- **Use mobile-first approach** with `min-width` media queries
+- **Touch targets:** Minimum 44x44px for all interactive elements
+- **Responsive breakpoints:**
+  - Mobile: `sm:` (640px+)
+  - Tablet: `md:` (768px+)
+  - Desktop: `lg:` (1024px+)
+  - Large Desktop: `xl:` (1280px+)
 
 ---
 
@@ -83,8 +89,14 @@ coherence/                       # Repository root (run npm commands here)
 │   │   │   ├── badge.tsx
 │   │   │   └── ...
 │   │   │
+│   │   ├── auth/                # Authentication components
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── RegisterForm.tsx
+│   │   │   └── AuthGuard.tsx
+│   │   │
 │   │   ├── upload/              # Upload page components
 │   │   │   ├── UploadZone.tsx
+│   │   │   ├── MobileCameraButton.tsx  # Mobile camera integration
 │   │   │   └── FilePreview.tsx
 │   │   │
 │   │   ├── processing/          # Processing page components
@@ -92,6 +104,7 @@ coherence/                       # Repository root (run npm commands here)
 │   │   │   └── StatusMessage.tsx
 │   │   │
 │   │   ├── results/             # Results dashboard components
+│   │   │   ├── MobileResults.tsx  # Mobile-optimized layout
 │   │   │   ├── VideoPlayer.tsx
 │   │   │   ├── DissonanceTimeline.tsx
 │   │   │   ├── CoachingCard.tsx
@@ -432,36 +445,116 @@ const fetchResults = async (videoId: string): Promise<AnalysisResult> => {
 
 ## 🎯 Component-Specific Requirements
 
-### 1. Upload Page Component
+### 0. Authentication Components (Production Requirement)
 
-**Location:** `frontend/components/upload/UploadPage.tsx` or `frontend/pages/UploadPage.tsx`
+**Location:** `frontend/components/auth/`
 
 ```tsx
 /**
- * UploadPage - Video upload interface with drag-and-drop
+ * LoginForm - User login interface
  *
  * Features:
- * - Drag-and-drop zone (400px minimum height)
- * - File validation: MP4/MOV, max 500MB, max 3 minutes
- * - Local preview before upload
- * - Progress indicator during upload
+ * - Email and password fields
+ * - "Remember me" checkbox
+ * - "Forgot password" link
+ * - Mobile-optimized layout
  *
- * BACKEND_HOOK: POST /api/videos/upload
+ * BACKEND_HOOK: POST /api/auth/login
  */
-export function UploadPage() {
+export function LoginForm() {
+  // Implementation
+}
+
+/**
+ * RegisterForm - User registration interface
+ *
+ * Features:
+ * - Email, password, confirm password fields
+ * - Terms of service checkbox
+ * - Email validation
+ * - Mobile-optimized layout
+ *
+ * BACKEND_HOOK: POST /api/auth/register
+ */
+export function RegisterForm() {
+  // Implementation
+}
+
+/**
+ * AuthGuard - Protected route wrapper
+ *
+ * Features:
+ * - Checks authentication status
+ * - Redirects to login if not authenticated
+ * - Shows loading state during auth check
+ */
+export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Implementation
 }
 ```
 
 **Requirements:**
 
-- Drag-and-drop zone with visual feedback on dragover
-- File type validation (MP4, MOV only)
+- Mobile-first responsive design
+- Form validation (email format, password strength)
+- Error handling with clear messages
+- Loading states during authentication
+- Redirect after successful login/register
+
+### 1. Upload Page Component
+
+**Location:** `frontend/components/upload/UploadPage.tsx` or `frontend/pages/UploadPage.tsx`
+
+```tsx
+/**
+ * UploadPage - Mobile-first video upload interface
+ *
+ * Features:
+ * - Mobile: Camera integration for direct recording
+ * - Desktop: Drag-and-drop zone
+ * - File validation: MP4/MOV, max 500MB, max 5 minutes
+ * - Local preview before upload
+ * - Progress indicator during upload
+ *
+ * BACKEND_HOOK: POST /api/videos/upload
+ */
+export function UploadPage() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  return (
+    <div className="min-h-screen p-4 md:p-6">
+      {isMobile ? (
+        <MobileUploadZone onUpload={handleUpload} />
+      ) : (
+        <DesktopUploadZone onUpload={handleUpload} />
+      )}
+    </div>
+  );
+}
+```
+
+**Mobile Requirements:**
+
+- **Camera Integration:** Use device camera API for direct recording
+- **File Picker:** Native file picker with camera option
+- **Touch-Friendly:** Large buttons (min 44x44px)
+- **Preview:** Full-screen video preview on mobile
+- **Progress:** Clear progress indicator
+
+**Desktop Requirements:**
+
+- Drag-and-drop zone with visual feedback
+- File type validation (MP4, MOV, WebM)
 - File size validation (500MB max)
-- Video duration validation (3 minutes max) - use HTML5 video duration
-- Show local video preview before "upload"
-- Progress indicator during mock upload
+- Video duration validation (5 minutes max)
+- Show local video preview
+- Progress indicator during upload
+
+**Common Requirements:**
+
 - Navigate to `/processing/{videoId}` on success
+- Error handling with retry option
+- Authentication check (redirect to login if not authenticated)
 
 ### 2. Processing Page Component
 
@@ -496,24 +589,25 @@ export function ProcessingPage() {
 
 **Location:** `frontend/components/results/ResultsPage.tsx`
 
-**Desktop Layout (3-Panel Grid):**
+**Mobile-First Responsive Layout:**
 
 ```tsx
-<div className="min-h-screen bg-slate-950 p-6">
+<div className="min-h-screen bg-slate-950 p-4 md:p-6">
   {/* Header - Full Width */}
-  <header className="mb-8">
+  <header className="mb-4 md:mb-8">
     <ScoreBadge score={result.coherenceScore} size="lg" />
     <MetricsRow metrics={result.metrics} />
   </header>
 
-  {/* Main Content - 2 Column Grid */}
-  <div className="grid grid-cols-[1fr_1fr] gap-6 lg:grid-cols-[2fr_1fr]">
-    {/* Left: Video Player */}
+  {/* Main Content - Stacked on Mobile, Grid on Desktop */}
+  <div className="flex flex-col gap-4 md:grid md:grid-cols-[1fr] lg:grid-cols-[2fr_1fr]">
+    {/* Video Section - Full Width on Mobile */}
     <div className="space-y-4">
       <VideoPlayer
         videoUrl={result.videoUrl}
         currentTime={currentTime}
         onTimeUpdate={setCurrentTime}
+        className="w-full"
       />
       <DissonanceTimeline
         flags={result.dissonanceFlags}
@@ -523,8 +617,8 @@ export function ProcessingPage() {
       />
     </div>
 
-    {/* Right: Coaching Cards */}
-    <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-200px)]">
+    {/* Coaching Cards - Full Width on Mobile, Sidebar on Desktop */}
+    <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-300px)] md:max-h-[calc(100vh-200px)]">
       {result.dissonanceFlags.map((flag) => (
         <CoachingCard key={flag.id} flag={flag} onJumpTo={handleSeek} />
       ))}
@@ -532,6 +626,13 @@ export function ProcessingPage() {
   </div>
 </div>
 ```
+
+**Mobile Considerations:**
+- Stack all sections vertically on mobile
+- Full-width video player
+- Touch-optimized timeline (larger touch targets)
+- Swipeable coaching cards
+- Bottom navigation for easy access
 
 ### 4. Dissonance Timeline Component
 
@@ -663,23 +764,42 @@ className = "text-purple-400"; // Primary accent
 className = "text-cyan-400"; // Secondary accent / coaching tips
 ```
 
-### Spacing System (8px grid)
+### Mobile-First Spacing System
 
 ```tsx
-// Component spacing
-p-4   // 16px - compact elements
-p-6   // 24px - standard cards
-p-8   // 32px - large containers
+// Responsive spacing (mobile-first)
+p-3 md:p-4   // 12px mobile, 16px desktop - compact elements
+p-4 md:p-6   // 16px mobile, 24px desktop - standard cards
+p-6 md:p-8   // 24px mobile, 32px desktop - large containers
 
 // Gap between elements
-gap-4 // 16px - tight lists
-gap-6 // 24px - card grids
-gap-8 // 32px - sections
+gap-3 md:gap-4 // 12px mobile, 16px desktop - tight lists
+gap-4 md:gap-6 // 16px mobile, 24px desktop - card grids
+gap-6 md:gap-8 // 24px mobile, 32px desktop - sections
+
+// Touch targets (mobile)
+min-h-[44px] min-w-[44px] // Minimum touch target size
 
 // Rounded corners
 rounded-lg    // 8px - buttons, badges
 rounded-xl    // 12px - cards
 rounded-2xl   // 16px - large containers
+```
+
+### Mobile-Specific Patterns
+
+```tsx
+// Mobile navigation (bottom bar)
+className = "fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 md:hidden";
+
+// Mobile header (sticky)
+className = "sticky top-0 z-50 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800";
+
+// Mobile full-screen modal
+className = "fixed inset-0 z-50 bg-slate-950 md:relative md:inset-auto";
+
+// Responsive grid (stack on mobile, grid on desktop)
+className = "flex flex-col gap-4 md:grid md:grid-cols-2 lg:grid-cols-3";
 ```
 
 ---
@@ -828,8 +948,13 @@ export const mockStatusSequence: StatusResponse[] = [
 - [ ] All backend integration points marked with `// BACKEND_HOOK:`
 - [ ] Mock data matches TypeScript interfaces exactly
 - [ ] Mock data fallback exists for API failures
-- [ ] Desktop layout (1440px) renders correctly
+- [ ] Mobile layout (320px, 375px, 414px) renders correctly
+- [ ] Tablet layout (768px) renders correctly
+- [ ] Desktop layout (1024px, 1440px) renders correctly
+- [ ] Touch interactions work on mobile devices
+- [ ] Camera integration works on mobile (if implemented)
 - [ ] UI design matches original mockups (no accidental regressions)
+- [ ] Accessibility: WCAG 2.1 AA compliance (keyboard navigation, screen readers)
 
 ---
 
@@ -842,6 +967,9 @@ export const mockStatusSequence: StatusResponse[] = [
 | Path alias        | `@/src/components`         | `@/components`                  |
 | Entry point       | `pages/_app.tsx`           | `frontend/main.tsx`             |
 | Server components | `'use client'` directive   | Not needed (all client)         |
+| Design approach   | Desktop-first              | Mobile-first                    |
+| Breakpoints       | `min-width` queries        | Mobile-first with `min-width`   |
+| Touch targets     | Not considered             | Minimum 44x44px                 |
 | Asset imports     | `figma:asset/logo.png`     | `@/assets/logo.png`             |
 | Package imports   | `lucide-react@0.487.0`     | `lucide-react`                  |
 | Style tag         | `<style jsx>`              | `<style>` (no jsx attribute)    |

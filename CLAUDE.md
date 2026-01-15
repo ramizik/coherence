@@ -1,79 +1,105 @@
-# CLAUDE.md - Coherence AI Presentation Coach
+# CLAUDE.md - Coherence Backend Development Guidelines
 
-You are assisting backend development for **Coherence**, an AI-powered presentation coaching platform built during a **24-hour hackathon**. Your role is to help build a demo-optimized MVP that integrates video analysis, speech processing, and multimodal AI.
+You are assisting backend development for **Coherence**, an AI-powered presentation coaching platform. This is a **production-ready startup** building a scalable SaaS product that helps users improve their presentation skills through visual-verbal dissonance detection.
 
 ---
 
 ## 🎯 Mission & Constraints
 
-**Goal:** Build an impressive, demo-stable backend that processes presentation videos and detects visual-verbal dissonance.
+**Goal:** Build a scalable, maintainable backend that processes presentation videos and provides actionable coaching insights.
 
-**Time:** 24 hours of build time
+**Context:** Transitioning from hackathon MVP to production SaaS
 
 **Optimize for:**
-- Demo reliability (must work on stage)
-- Sponsor API integration depth (TwelveLabs, Deepgram, Gemini)
-- Fast implementation
-- Clear integration points for frontend
+- Production scalability and reliability
+- Code maintainability and testability
+- Cost efficiency (AI service usage)
+- User experience (fast processing, clear errors)
+- Security and data privacy
 
 **Do NOT optimize for:**
-- Production scalability
-- Perfect architecture
-- Database persistence
-- Comprehensive error handling
+- Premature optimization (measure first)
+- Over-engineering (start simple, scale when needed)
+- Vendor lock-in (use abstraction layers)
 
 ---
 
-## 🏗️ Technology Stack (Fixed)
+## 🏗️ Technology Stack
 
-### Backend
+### Backend Framework
 - **Framework:** FastAPI (Python 3.10+)
-- **Processing:** Async background tasks (in-memory queue)
-- **Storage:** Local filesystem + in-memory cache (no MongoDB for hackathon)
-- **Video Processing:** FFmpeg for frame extraction
+- **Database:** PostgreSQL (recommended) or MongoDB
+- **Queue:** Celery + Redis or RQ for background jobs
+- **Storage:** Cloud storage (S3/GCS/Azure Blob) for videos
+- **Cache:** Redis for caching and sessions
 
-### AI Services (Core Integration)
-1. **TwelveLabs** - Video understanding (semantic search for body language)
-2. **Deepgram** - Speech transcription and audio analysis
-3. **Gemini 1.5 Pro** - Multimodal synthesis (dissonance detection)
+### AI Services (Flexible - Evaluate Best Options)
+
+**Current MVP Stack:**
+- TwelveLabs - Video understanding
+- Deepgram - Speech transcription
+- Gemini 1.5 Pro - Multimodal synthesis
+
+**Note:** AI services are **not fixed**. Evaluate alternatives based on:
+- Cost per analysis
+- Accuracy and latency
+- API reliability
+- Feature set
+
+**Service Abstraction Pattern:**
+```python
+# backend/app/services/ai/base.py
+class VideoAnalysisProvider(ABC):
+    @abstractmethod
+    async def analyze_video(self, video_path: str) -> VideoAnalysis:
+        pass
+
+# backend/app/services/ai/twelvelabs_provider.py
+class TwelveLabsProvider(VideoAnalysisProvider):
+    # Implementation
+
+# backend/app/services/ai/openai_provider.py
+class OpenAIProvider(VideoAnalysisProvider):
+    # Alternative implementation
+```
 
 ### Frontend Contract
-- Vite + React 18 (TypeScript) - runs from repository root
-- Frontend code lives in `frontend/` folder, config files in root
-- You provide REST API endpoints marked in their code as `// BACKEND_HOOK:`
-- All responses must match TypeScript interfaces defined in frontend
-- Frontend runs on http://localhost:3000, backend on http://localhost:8000
+- Vite + React 18 (TypeScript)
+- Frontend code in `frontend/` folder
+- REST API endpoints marked with `// BACKEND_HOOK:`
+- All responses match TypeScript interfaces
+- Production: Frontend deployed separately (Vercel/Netlify)
 
 ---
 
 ## 🔑 Core Development Principles
 
-### 1. Hackathon Speed Rules
-- **Monolith over microservices** - Single FastAPI app
-- **In-memory over database** - Dict/list caching, no persistence
-- **Parallel over sequential** - Run TwelveLabs + Deepgram simultaneously
-- **Pre-cached over live** - Index demo videos beforehand
-- **Hardcoded over config** - Fast iteration, no environment complexity
+### 1. Production-Ready Architecture
+- **Database over in-memory:** Persistent storage for all data
+- **Queue over sync:** Background jobs for video processing
+- **Cloud storage over local:** Scalable file storage
+- **Monitoring over guessing:** Logging, metrics, error tracking
+- **Security by default:** Authentication, authorization, input validation
 
-### 2. Demo-First Engineering
-- Every endpoint must have a **cached fallback** for demo day
-- Processing time target: **<60 seconds** per video
-- **Pre-index** 3 sample videos the night before
-- Implement **offline mode** for bad venue WiFi
-- Test with **5+ demo rehearsals**
+### 2. Scalability First
+- Design for horizontal scaling
+- Stateless API design
+- Efficient database queries
+- Caching strategies
+- Rate limiting per user
 
-### 3. Lightweight Testing
-- Focus on **critical path only**: upload → process → results
-- Use `pytest` with fixtures for API testing
-- Mock external APIs for unit tests
-- Integration tests for end-to-end flow
-- Tests live in: `/tests/`
+### 3. Cost Consciousness
+- Monitor AI service costs
+- Cache expensive operations
+- Optimize API calls
+- Consider alternatives when costs are high
 
-### 4. Integration Contract
-- Match **exact TypeScript interfaces** from frontend
-- Mark all external API calls with clear comments
-- Provide **mock data generators** for frontend development
-- Include **status polling** mechanism
+### 4. Code Quality
+- Type hints on all functions
+- Comprehensive docstrings
+- Unit and integration tests
+- Clear error messages
+- Structured logging
 
 ---
 
@@ -82,417 +108,517 @@ You are assisting backend development for **Coherence**, an AI-powered presentat
 ```
 backend/
 ├── __init__.py
-├── cli.py                     # CLI tool for testing modules
+├── cli.py                     # CLI tool for testing
+├── alembic/                   # Database migrations
+│   ├── versions/
+│   └── env.py
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                # FastAPI app entry (CORS, router includes)
+│   ├── main.py                # FastAPI app entry
+│   ├── config.py              # Configuration management
+│   ├── dependencies.py        # Dependency injection
+│   ├── middleware/
+│   │   ├── auth.py            # Authentication middleware
+│   │   ├── error_handler.py   # Error handling
+│   │   └── rate_limit.py      # Rate limiting
 │   ├── routers/
-│   │   ├── __init__.py
-│   │   └── videos.py          # Upload, status, results, stream endpoints ✅
+│   │   ├── auth.py            # Authentication endpoints
+│   │   ├── users.py           # User management
+│   │   ├── videos.py          # Video endpoints
+│   │   └── analytics.py        # Analytics endpoints
 │   ├── services/
-│   │   ├── __init__.py
-│   │   └── video_service.py   # Video processing, in-memory cache ✅
-│   └── models/
-│       ├── __init__.py
-│       └── schemas.py         # Pydantic models (12 schemas) ✅
-├── twelvelabs/
-│   ├── __init__.py
-│   ├── twelvelabs_client.py   # TwelveLabs SDK client ✅
-│   ├── indexing.py            # Video indexing operations ✅
-│   ├── analysis.py            # Video analysis operations ✅
-│   └── app.py                 # Standalone test script
-├── data/
-│   └── videos/                # Uploaded video storage ✅
-└── README.md                  # Backend setup + CLI docs
-```
-
-**API Endpoints Implemented:**
-- `POST /api/videos/upload` - Upload video, start processing
-- `GET /api/videos/{id}/status` - Poll processing status
-- `GET /api/videos/{id}/results` - Get analysis results
-- `GET /api/videos/samples/{id}` - Load sample video
-- `GET /api/videos/{id}/stream` - Stream video file
-
----
-
-## 🔌 API Endpoints (Frontend Contract)
-
-### 1. Upload Video
-```
-POST /api/videos/upload
-Content-Type: multipart/form-data
-
-Request:
-  - video: File (MP4/MOV/WebM, max 500MB, max 5 minutes)
-
-Response:
-  {
-    "videoId": "abc-123-uuid",
-    "status": "processing",
-    "estimatedTime": 45,
-    "durationSeconds": 183
-  }
-```
-
-### 2. Check Status (Poll every 3 seconds)
-```
-GET /api/videos/{videoId}/status
-
-Response:
-  {
-    "videoId": "abc-123-uuid",
-    "status": "queued" | "processing" | "complete" | "error",
-    "progress": 0-100,
-    "stage": "Analyzing body language...",
-    "etaSeconds": 25,
-    "error": null  // Error message if status === "error"
-  }
-```
-
-**Stage Messages** (for UX):
-- `"Extracting audio..."` (0-15%)
-- `"Transcribing speech..."` (15-30%)
-- `"Analyzing body language..."` (30-60%)
-- `"Detecting dissonance..."` (60-85%)
-- `"Generating insights..."` (85-100%)
-
-### 3. Get Results
-```
-GET /api/videos/{videoId}/results
-
-Response: AnalysisResult (matches TypeScript interface)
-  {
-    "videoId": "abc-123-uuid",
-    "videoUrl": "/videos/abc-123-uuid.mp4",
-    "durationSeconds": 183,
-    "coherenceScore": 67,
-    "scoreTier": "Good Start",  // "Needs Work" | "Good Start" | "Strong"
-
-    "metrics": {
-      "eyeContact": 62,         // Percentage (0-100)
-      "fillerWords": 12,        // Count
-      "fidgeting": 8,           // Count
-      "speakingPace": 156,      // WPM (target: 140-160)
-      "speakingPaceTarget": "140-160"
-    },
-
-    "dissonanceFlags": [
-      {
-        "id": "flag-1",
-        "timestamp": 45.2,
-        "endTimestamp": 48.0,
-        "type": "EMOTIONAL_MISMATCH",
-        "severity": "HIGH",
-        "description": "Said 'thrilled' but facial expression showed anxiety",
-        "coaching": "Practice saying this line while smiling. Your face should match your excitement.",
-        "visualEvidence": "TwelveLabs: 'person looking anxious' at 0:43-0:48",
-        "verbalEvidence": "Deepgram: 'thrilled' (positive sentiment)"
-      }
-    ],
-
-    "timelineHeatmap": [
-      {"timestamp": 12, "severity": "LOW"},
-      {"timestamp": 45, "severity": "HIGH"},
-      {"timestamp": 83, "severity": "MEDIUM"}
-    ],
-
-    "strengths": ["Clear voice projection", "Logical structure"],
-    "priorities": ["Reduce nervous fidgeting", "Increase eye contact", "Match emotions to words"]
-  }
-```
-
-### 4. Serve Video (for playback)
-```
-GET /videos/{videoId}.mp4
-
-Response: Video file stream with Range request support
+│   │   ├── auth_service.py    # Authentication logic
+│   │   ├── video_service.py   # Video processing
+│   │   ├── storage_service.py # Cloud storage
+│   │   └── ai/                # AI service abstraction
+│   │       ├── base.py         # Abstract base classes
+│   │       ├── twelvelabs_provider.py
+│   │       ├── deepgram_provider.py
+│   │       └── gemini_provider.py
+│   ├── models/
+│   │   ├── database.py        # SQLAlchemy models
+│   │   └── schemas.py         # Pydantic schemas
+│   ├── tasks/
+│   │   └── video_processing.py # Celery tasks
+│   └── utils/
+│       ├── logging.py         # Logging setup
+│       └── exceptions.py      # Custom exceptions
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── fixtures/
+└── README.md
 ```
 
 ---
 
-## 🤖 AI Integration Guidelines
+## 🔌 API Endpoints
 
-### TwelveLabs (Deep Integration Required)
-**Purpose:** Semantic video search for body language analysis
+### Authentication
 
-**Key Queries to Run:**
-- Emotion: `"person smiling"`, `"person frowning"`, `"person showing anxiety"`
-- Engagement: `"person looking at camera"`, `"person looking away"`
-- Gestures: `"person pointing"`, `"person fidgeting hands"`
-- Posture: `"person standing straight"`, `"person slouching"`
-
-**Run 10-15 queries per video** to showcase API depth
-
-**Implementation Pattern:**
-```python
-# Index video first
-index_response = await twelvelabs.index_video(video_path)
-
-# Run parallel semantic queries
-queries = [
-    "person smiling",
-    "person frowning",
-    "person looking at camera",
-    "person pointing"
-]
-results = await asyncio.gather(*[
-    twelvelabs.search(index_id, query)
-    for query in queries
-])
+```
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+GET  /api/auth/me
 ```
 
-### Deepgram (Medium Integration)
-**Purpose:** Real-time transcription and speech metrics
+### Users
 
-**Extract:**
-- Full transcript with word-level timestamps
-- Filler word detection (um, uh, like, you know)
-- Speaking pace (WPM calculation)
-- Pause detection
-
-**Implementation Pattern:**
-```python
-# Get transcript with timestamps
-transcript = await deepgram.transcribe(audio_path)
-
-# Calculate derived metrics
-filler_words = count_fillers(transcript.words)
-wpm = calculate_pace(transcript.words, duration)
+```
+GET    /api/users/me
+PUT    /api/users/me
+DELETE /api/users/me
+GET    /api/users/me/videos
 ```
 
-### Gemini (Deep Integration)
-**Purpose:** Multimodal orchestration and dissonance detection
+### Videos
 
-**Inputs (Bundle):**
-```python
-synthesis_input = {
-    "transcript": deepgram_data["transcript"],
-    "transcript_words": deepgram_data["words"],  # With timestamps
-    "visual_events": twelvelabs_data,            # Query results
-    "slide_images": [base64_encode(img) for img in slide_paths],
-    "metrics": {
-        "filler_count": 12,
-        "wpm": 156,
-        "eye_contact_pct": 62,
-        "fidget_count": 8
-    }
-}
+```
+POST   /api/videos/upload
+GET    /api/videos
+GET    /api/videos/{id}
+GET    /api/videos/{id}/status
+GET    /api/videos/{id}/results
+DELETE /api/videos/{id}
+GET    /api/videos/{id}/stream
 ```
 
-**Outputs:**
-- Dissonance flags with timestamps, severity, coaching
-- Coherence score with breakdown
-- Strengths and top 3 priorities
+### Analytics
 
-**Prompt Strategy:**
-```python
-prompt = f"""
-You are an expert presentation coach. Analyze this presentation for
-visual-verbal dissonance. You have:
-
-1. Full transcript with word-level timestamps
-2. Visual analysis showing facial expressions, gestures, eye contact
-3. Slide screenshots with text content
-
-Detect these critical issues:
-
-A) EMOTIONAL_MISMATCH: Speech sentiment contradicts facial expression
-   Example: Saying "excited" at 00:45 but detected "anxious face" at 00:43-00:48
-
-B) MISSING_GESTURE: Deictic phrases without corresponding pointing
-   Example: "Look at this chart" at 01:23 but no "pointing" gesture detected ±3s
-
-C) PACING_MISMATCH: Dense slides shown too briefly for comprehension
-   Example: Slide has 127 words but only shown for 18 seconds (need ~45s)
-
-TRANSCRIPT: {transcript}
-BODY LANGUAGE EVENTS: {twelvelabs_results}
-METRICS: {metrics}
-SLIDE IMAGES: [attached]
-
-Return JSON matching this exact schema:
-{{
-  "dissonance_flags": [
-    {{
-      "type": "EMOTIONAL_MISMATCH" | "MISSING_GESTURE" | "PACING_MISMATCH",
-      "timestamp": 45.2,
-      "end_timestamp": 48.0,
-      "severity": "HIGH" | "MEDIUM" | "LOW",
-      "description": "What was detected",
-      "coaching": "Specific actionable fix"
-    }}
-  ],
-  "strengths": ["List of things done well"],
-  "priorities": ["Top 3 improvement areas"]
-}}
-"""
+```
+GET /api/analytics/overview
+GET /api/analytics/progress
 ```
 
 ---
 
-## 📊 Analysis Logic
+## 🤖 AI Service Integration
 
-### Coherence Score Algorithm
+### Service Abstraction Pattern
+
+**Always use abstraction layer for AI services:**
+
 ```python
-def calculate_coherence(metrics, flags):
-    """
-    Weighted scoring (0-100):
-    - Eye contact: 30%
-    - Filler words: 25%
-    - Fidgeting: 20%
-    - Speaking pace: 15%
-    - Dissonance penalties: -10 each
-    """
-    score = (
-        (metrics.eye_contact / 100) * 30 +
-        max(0, (20 - metrics.filler_words) / 20) * 25 +
-        max(0, (15 - metrics.fidgeting) / 15) * 20 +
-        calculate_pace_score(metrics.speaking_pace) * 15
+# backend/app/services/ai/base.py
+from abc import ABC, abstractmethod
+
+class VideoAnalysisProvider(ABC):
+    """Abstract base class for video analysis providers."""
+
+    @abstractmethod
+    async def analyze_video(
+        self,
+        video_path: str,
+        options: AnalysisOptions
+    ) -> VideoAnalysis:
+        """Analyze video and return structured results."""
+        pass
+
+class SpeechTranscriptionProvider(ABC):
+    """Abstract base class for speech transcription."""
+
+    @abstractmethod
+    async def transcribe(
+        self,
+        audio_path: str
+    ) -> Transcription:
+        """Transcribe audio and return transcript with timestamps."""
+        pass
+
+class CoachingSynthesisProvider(ABC):
+    """Abstract base class for coaching report generation."""
+
+    @abstractmethod
+    async def generate_coaching(
+        self,
+        analysis_data: AnalysisData
+    ) -> CoachingReport:
+        """Generate personalized coaching report."""
+        pass
+```
+
+### Path 1: Optimize Current Stack (Recommended Initial Approach)
+
+We start by **optimizing the existing TwelveLabs + Deepgram + Gemini stack** and make it production-ready:
+
+1. **Temporal clustering & smoothing (TwelveLabs)**
+   - After receiving raw events from TwelveLabs, run a temporal clustering step:
+     - Group contiguous high-similarity frames into coherent clips.
+     - Apply temporal smoothing to merge adjacent high-scoring segments and suppress isolated spikes.
+   - Use this clustered representation as the source of:
+     - Dissonance flags.
+     - Timeline heatmap.
+   - Goal: reduce irrelevant/isolated detections and improve perceived quality of flags.
+
+2. **Confidence score filtering**
+   - TwelveLabs returns similarity/confidence scores.
+   - Apply configurable thresholds per query type (e.g., stricter for EMOTIONAL_MISMATCH).
+   - Drop low-confidence events before clustering.
+   - Expose thresholds via configuration so we can tune them without redeploying.
+
+3. **Query optimization (Pegasus 1.2)**
+   - Use Pegasus 1.2 model with **more specific semantic queries**, for example:
+     - “nervous fidgeting near podium while speaking”
+     - “presenter looking away from camera while talking”
+   - Iterate on query set based on internal evaluation and user feedback.
+
+4. **Cost optimization for AI calls**
+   - Cache repeated analysis patterns (e.g., same video re-analyzed, similar video segments).
+   - Memoize intermediate results when possible (e.g., transcription, segmentation).
+   - Support batching of non-urgent jobs (e.g., practice library) in off-peak windows.
+   - Instrument and track cost per analysis per provider.
+
+5. **Service abstraction timeline**
+   - Implement the service abstraction layer early (aligned with ROADMAP `AI-3.1`).
+   - Launch with the current providers behind the abstraction.
+   - Later A/B test alternative providers on 10–20% of traffic by swapping implementations.
+
+### Implementation Example
+
+```python
+# backend/app/services/ai/twelvelabs_provider.py
+from .base import VideoAnalysisProvider
+
+class TwelveLabsProvider(VideoAnalysisProvider):
+    def __init__(self, api_key: str):
+        self.client = TwelveLabsClient(api_key)
+
+    async def analyze_video(
+        self,
+        video_path: str,
+        options: AnalysisOptions
+    ) -> VideoAnalysis:
+        # Implementation
+        pass
+```
+
+### Service Selection
+
+**Use configuration to select providers:**
+
+```python
+# backend/app/config.py
+class AIConfig:
+    video_analysis_provider: str = "twelvelabs"  # or "openai", "custom"
+    speech_provider: str = "deepgram"  # or "whisper", "assemblyai"
+    coaching_provider: str = "gemini"  # or "claude", "gpt4"
+```
+
+---
+
+## 📊 Database Models
+
+### Core Models
+
+```python
+# backend/app/models/database.py
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    created_at = Column(DateTime)
+
+    videos = relationship("Video", back_populates="user")
+
+class Video(Base):
+    __tablename__ = "videos"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    storage_path = Column(String)
+    duration_seconds = Column(Integer)
+    status = Column(String)  # queued, processing, complete, error
+    created_at = Column(DateTime)
+
+    user = relationship("User", back_populates="videos")
+    analysis = relationship("Analysis", back_populates="video", uselist=False)
+
+class Analysis(Base):
+    __tablename__ = "analyses"
+
+    id = Column(String, primary_key=True)
+    video_id = Column(String, ForeignKey("videos.id"))
+    coherence_score = Column(Integer)
+    score_tier = Column(String)
+    created_at = Column(DateTime)
+
+    video = relationship("Video", back_populates="analysis")
+    metrics = relationship("AnalysisMetrics", back_populates="analysis")
+    flags = relationship("DissonanceFlag", back_populates="analysis")
+```
+
+---
+
+## 🔐 Authentication & Authorization
+
+### JWT-Based Authentication
+
+```python
+# backend/app/services/auth_service.py
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: timedelta) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+```
+
+### Authorization Middleware
+
+```python
+# backend/app/middleware/auth.py
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials"
     )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
-    # Deduct for critical flags
-    critical_flags = [f for f in flags if f.severity == "HIGH"]
-    score -= len(critical_flags) * 10
-
-    return max(0, min(100, score))
-```
-
-### Dissonance Detection Patterns
-
-**1. Emotional Mismatch**
-- Transcript sentiment (Gemini) vs facial expressions (TwelveLabs)
-- Flag if: Positive words + anxious/neutral face
-
-**2. Missing Gesture**
-- Deictic phrases ("this", "here", "look") in transcript
-- Check TwelveLabs for pointing/gesturing at timestamp
-- Flag if: Deictic phrase + no gesture detected
-
-**3. Pacing Mismatch**
-- OCR slide text (Gemini Vision)
-- Compare word count to speech duration
-- Flag if: 100+ words shown <20 seconds
-
----
-
-## 🎪 Demo Requirements
-
-### Pre-Demo Preparation
-1. **Index 3 sample videos** in TwelveLabs night before
-2. **Cache all results** in memory (instant load)
-3. **Test offline mode** - serve cached results if APIs fail
-4. **Validate processing time** - all samples <45 seconds
-5. **Rehearse 5+ times** with timer
-
-### Live Demo Flow
-```python
-# Stage 1: Show cached result (instant)
-GET /api/videos/sample-c/results  # Pre-indexed
-
-# Stage 2: Local upload (live processing)
-POST /api/videos/upload  # Real-time, max 60s
-```
-
-### Fallback Strategy
-```python
-# If live upload times out
-if processing_time > 60:
-    return cached_results["sample-c"]  # Pivot to backup
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise credentials_exception
+    return user
 ```
 
 ---
 
-## 🚨 Risk Mitigation
+## 📦 Background Jobs
 
-### High-Priority Risks
+### Celery Task Example
 
-**Risk:** TwelveLabs indexing >60 seconds
-- **Mitigation:** Pre-index demo videos, cache results
-- **Fallback:** Show Sample C if processing times out
+```python
+# backend/app/tasks/video_processing.py
+from celery import Celery
+from app.services.video_service import VideoService
+from app.services.ai import get_ai_providers
 
-**Risk:** API rate limits during demo
-- **Mitigation:** Separate API keys for testing vs demo
-- **Fallback:** Cached results for all demos
+celery_app = Celery("coherence")
 
-**Risk:** Bad venue WiFi
-- **Mitigation:** Offline mode with pre-loaded results
-- **Test:** Load dashboard before going on stage
+@celery_app.task(bind=True, max_retries=3)
+def process_video(self, video_id: str):
+    """Process video analysis in background."""
+    try:
+        video_service = VideoService()
+        ai_providers = get_ai_providers()
 
-**Risk:** Poor quality uploaded video
-- **Mitigation:** Client-side validation (lighting check)
-- **Fallback:** "Let's use this prepared example"
+        # Update status
+        video_service.update_status(video_id, "processing")
+
+        # Process video
+        result = video_service.analyze_video(video_id, ai_providers)
+
+        # Save results
+        video_service.save_analysis(video_id, result)
+
+        # Update status
+        video_service.update_status(video_id, "complete")
+
+    except Exception as exc:
+        # Retry on failure
+        raise self.retry(exc=exc, countdown=60)
+```
+
+---
+
+## 🚨 Error Handling
+
+### Custom Exceptions
+
+```python
+# backend/app/utils/exceptions.py
+class CoherenceException(Exception):
+    """Base exception for Coherence."""
+    pass
+
+class VideoNotFoundError(CoherenceException):
+    """Video not found."""
+    pass
+
+class ProcessingError(CoherenceException):
+    """Video processing failed."""
+    pass
+
+class AIServiceError(CoherenceException):
+    """AI service call failed."""
+    pass
+```
+
+### Error Handler Middleware
+
+```python
+# backend/app/middleware/error_handler.py
+@app.exception_handler(CoherenceException)
+async def coherence_exception_handler(
+    request: Request,
+    exc: CoherenceException
+):
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": str(exc),
+            "code": exc.__class__.__name__,
+            "retryable": isinstance(exc, ProcessingError)
+        }
+    )
+```
+
+---
+
+## 📝 Logging & Monitoring
+
+### Structured Logging
+
+```python
+# backend/app/utils/logging.py
+import logging
+import json
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        log_data = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+        }
+        if hasattr(record, "user_id"):
+            log_data["user_id"] = record.user_id
+        if hasattr(record, "video_id"):
+            log_data["video_id"] = record.video_id
+        return json.dumps(log_data)
+
+# Configure logger
+logger = logging.getLogger("coherence")
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logger.addHandler(handler)
+```
+
+### Monitoring Integration
+
+- **Error Tracking:** Sentry
+- **APM:** Datadog, New Relic, or similar
+- **Metrics:** Prometheus + Grafana
+- **Logs:** CloudWatch, Stackdriver, or similar
 
 ---
 
 ## ✅ Quality Standards
 
-### API Response Requirements
-- Match **exact TypeScript interfaces** from frontend
-- Include **clear error messages** with retry guidance
-- Provide **progress updates** during processing
-- Return **timestamps in seconds** (not milliseconds)
-
 ### Code Quality
-- **Type hints** on all functions
-- **Docstrings** for complex logic
-- **Clear variable names** (no abbreviations)
-- **Error handling** for API failures only (happy path first)
 
-### Integration Points
-- Mark all external API calls: `# API_CALL: TwelveLabs.search()`
-- Mark frontend integration: `# FRONTEND_CONTRACT: matches AnalysisResult interface`
-- Mark demo hooks: `# DEMO_CACHE: pre-load this on startup`
+- **Type hints:** All functions must have type hints
+- **Docstrings:** Public APIs must have docstrings
+- **Tests:** 80%+ code coverage for core logic
+- **Linting:** Pass ruff/flake8 checks
+- **Formatting:** Black code formatter
+
+### API Quality
+
+- **Response times:** <200ms for simple endpoints, <30s for processing
+- **Error messages:** Clear, actionable, user-friendly
+- **Documentation:** OpenAPI/Swagger docs up to date
+- **Versioning:** API versioning strategy (v1, v2)
+
+### Security
+
+- **Authentication:** Required for all user endpoints
+- **Authorization:** Check user owns resource
+- **Input validation:** Validate all inputs
+- **SQL injection:** Use ORM, never raw SQL
+- **XSS:** Sanitize user inputs
+- **CSRF:** CSRF tokens for state-changing operations
 
 ---
 
 ## 🎬 Development Workflow
 
-### Hour 0-8: Foundation
-- FastAPI skeleton with upload endpoint
-- Deepgram transcription working
-- TwelveLabs video indexing working
-- **Milestone:** Can upload video, get transcript
+### Local Development
 
-### Hour 8-16: Core Analysis
-- Gemini multimodal synthesis
-- Dissonance detection logic
-- Coherence score calculation
-- **Milestone:** End-to-end analysis pipeline
+1. **Set up environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-### Hour 16-22: Demo Prep
-- Cache 3 sample analyses
-- Status polling optimization
-- Error handling for demo scenarios
-- **Milestone:** Demo-ready with backups
+2. **Set up database:**
+   ```bash
+   alembic upgrade head
+   ```
 
-### Hour 22-24: Integration & Polish
-- Wire frontend to backend
-- Test full user flow
-- Rehearse demo 4+ times
-- **Milestone:** Local environment ready
+3. **Run migrations:**
+   ```bash
+   alembic revision --autogenerate -m "description"
+   alembic upgrade head
+   ```
+
+4. **Run tests:**
+   ```bash
+   pytest
+   ```
+
+5. **Start development server:**
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+### Code Review Checklist
+
+- [ ] Type hints on all functions
+- [ ] Docstrings for public APIs
+- [ ] Tests added/updated
+- [ ] Error handling implemented
+- [ ] Logging added for important operations
+- [ ] Database migrations tested
+- [ ] API documentation updated
 
 ---
 
 ## 🔗 Frontend Integration
 
 ### Integration Process
-1. Frontend team provides TypeScript interfaces
-2. You generate matching Pydantic models
-3. Frontend marks integration points with `// BACKEND_HOOK:`
-4. You implement endpoints matching those hooks
-5. Test with mock data first, then live APIs
+
+1. Frontend marks integration points with `// BACKEND_HOOK:`
+2. Backend implements matching endpoints
+3. Use Pydantic schemas matching TypeScript interfaces
+4. Test with frontend team
+5. Update API documentation
 
 ### Mock Data Strategy
-```python
-# Provide generators for frontend dev
-def generate_mock_result(score: int) -> AnalysisResult:
-    """Generate realistic mock data for testing"""
-    return AnalysisResult(
-        videoId="mock-" + str(uuid.uuid4()),
-        coherenceScore=score,
-        # ... populate with realistic data
-    )
-```
+
+**For development/testing:**
+- Provide mock data generators
+- Use fixtures in tests
+- Support test mode in API
 
 ---
 
@@ -500,73 +626,59 @@ def generate_mock_result(score: int) -> AnalysisResult:
 
 When assisting:
 - **Be direct** - no long preambles
-- **Show tradeoffs** - "This is faster but less accurate"
-- **Prioritize demo** - "This won't improve the demo, skip it"
-- **Flag risks** - "This could fail during demo, add fallback"
-- **Cut scope** - "This feature doesn't improve demo, remove it"
+- **Show tradeoffs** - "This is faster but costs more"
+- **Prioritize production** - "This improves reliability, do it"
+- **Flag risks** - "This could fail at scale, add monitoring"
+- **Suggest improvements** - "Consider caching this for performance"
 
-**Success metric:** Demo runs smoothly 5 times in a row without API failures.
+**Success metric:** Production system handles 1000+ concurrent users reliably.
 
 ---
 
 ## 🎯 Acceptance Criteria
 
-Backend is complete when:
-- ✅ All 3 endpoints return correct response shapes
-- ✅ Can process video in <60 seconds
-- ✅ 3 sample videos cached and load instantly
-- ✅ Frontend can integrate without refactoring
-- ✅ Demo rehearsed 5+ times successfully
-- ✅ Offline mode works (cached results)
-- ✅ All sponsor APIs integrated with 10+ calls each
+Backend is production-ready when:
+- ✅ Authentication and authorization implemented
+- ✅ Database persistence for all data
+- ✅ Background jobs process videos reliably
+- ✅ Error handling and logging comprehensive
+- ✅ API is documented and versioned
+- ✅ Tests cover critical paths (80%+ coverage)
+- ✅ Monitoring and alerting configured
+- ✅ Security best practices followed
 
-**Your mission:** Enable a flawless 3-minute demo that wins the hackathon.
+**Your mission:** Build a scalable, maintainable backend that enables confident presentations for millions of users.
+
+---
 
 ## Non-Negotiable Design Principles
+
 See AGENTS.md for detailed principles.
 
+---
 
-## Documentation Policy (Important)
+## Documentation Policy
 
 Do **NOT** generate new documentation `.md` files after every task.
-Only create documentation at **milestones** and **only when I explicitly prompt for it**.
+Only create documentation at **milestones** and **only when explicitly prompted**.
 All documentation must be stored in 'documentation' folder
 
-## "Role" mental models (map to existing Claude agents available in .claude/agents folder)
+---
 
-Use these specializations as needed (even if Cursor doesn't literally "switch agents"):
+## "Role" mental models
+
+Use these specializations as needed:
 
 - architect-reviewer: sanity-check structure, boundaries, and long-term maintainability.
 - backend-developer: API/data model/auth/server logic; validate error handling and contracts.
 - frontend-developer: page composition, state management, UX, responsive behavior.
-- fullstack-developer: end-to-end features spanning client and server; API routes, server actions, data fetching patterns, and frontend-backend integration.
+- fullstack-developer: end-to-end features spanning client and server.
 - react-specialist: component architecture, hooks, memoization, React best practices.
 - typescript-pro: types, generics, inference, avoiding unsafe casts.
 - ui-designer: layout, spacing, typography, a11y, and shadcn-consistent UI.
 - code-reviewer: PR-level feedback; keep suggestions actionable and prioritized.
 
-## Subagent usage
-
-Use Claude Code subagents from `.claude/agents/` when it improves quality or parallelizes work; pick the smallest set of agents needed for the task. The project contains these agents:
-
-- architect-reviewer
-- backend-developer
-- code-reviewer
-- frontend-developer
-- fullstack-developer
-- react-specialist
-- typescript-pro
-- ui-designer
-
-Guidelines:
-
-- Use `architect-reviewer` for big refactors, routing/data boundaries, and maintainability checks.
-- Use `frontend-developer` + `ui-designer` for UI/UX, page layout, and responsive behavior.
-- Use `fullstack-developer` for end-to-end features spanning client and server; API routes, server actions, data fetching patterns, and frontend-backend integration.
-- Use `react-specialist` for component patterns, hooks, state, and performance pitfalls.
-- Use `typescript-pro` whenever adding/changing types, API contracts, or complex props.
-- Use `backend-developer` for server/API/data/auth logic and error-handling.
-- Use `code-reviewer` at the end for a "PR review" pass before final output.
+---
 
 ## Finding library/API documentation
 

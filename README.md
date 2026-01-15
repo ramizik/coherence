@@ -2,7 +2,7 @@
 
 **Win your next presentation with AI-powered body language feedback.**
 
-Coherence is the first AI platform that detects **visual-verbal dissonance** — when your body language contradicts what you're saying. Built for students, professionals, and anyone who wants to present with confidence.
+Coherence is an AI platform that detects **visual-verbal dissonance** — when your body language contradicts what you're saying. Built for students, professionals, and anyone who wants to present with confidence.
 
 ---
 
@@ -20,34 +20,27 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 ❌ **Pacing Issues** - Showing dense slides too briefly for comprehension
 
 ---
-## 🎥 Demo Video
-
-[![Coherence](https://img.youtube.com/vi/0IcYJvMz0W4/0.jpg)](https://youtu.be/0IcYJvMz0W4)
-
-**Local Setup:** Run frontend and backend locally for development and testing
-
----
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────┐
 │   Vite + React  │  ← Frontend (TypeScript + TailwindCSS)
-│  localhost:3000 │
+│   (Mobile-First)│
 └────────┬────────┘
          │ REST API
 ┌────────▼────────┐
 │    FastAPI      │  ← Backend (Python, async)
-│  localhost:8000 │
+│   PostgreSQL    │  ← Database
+│   Redis/Celery  │  ← Background Jobs
 └────────┬────────┘
-         │ Parallel Processing
+         │ AI Services
     ┌────┼─────────────────┐
     ▼    ▼                 ▼
 ┌───────┐ ┌──────────┐ ┌─────────┐
-│Twelve │ │ Deepgram │ │ Gemini  │
-│ Labs  │ │  (Audio) │ │ (Coach) │
-│(Video)│ └──────────┘ └─────────┘
-└───────┘
+│Video  │ │ Speech   │ │Coaching │
+│Analysis│ │Transcribe│ │Synthesis│
+└───────┘ └──────────┘ └─────────┘
 ```
 
 ### Technology Stack
@@ -55,30 +48,35 @@ Coherence is the first AI platform that detects **visual-verbal dissonance** —
 **Frontend**
 - Vite 6+ with React 18 - Build tool and UI framework
 - TypeScript - Type safety
-- TailwindCSS v4 - Glassmorphic dark theme UI
+- TailwindCSS v4 - Mobile-first responsive design
 - shadcn/ui - Pre-built Radix UI components
 - Lucide React - Icon system
+- Progressive Web App (PWA) - Mobile app-like experience
 
 **Backend**
-- FastAPI - Python async web framework with CORS
-- Async background tasks - Non-blocking video processing
-- In-memory caching - Dict-based storage (no database)
-- Pydantic - Request/response validation with camelCase output
+- FastAPI - Python async web framework
+- PostgreSQL - Relational database
+- Celery/RQ - Background job processing
+- Redis - Caching and sessions
+- Cloud Storage (S3/GCS) - Video file storage
+- Pydantic - Request/response validation
 
-**AI Services (All Integrated ✅)**
-- **TwelveLabs** - Video indexing + semantic analysis (Pegasus 1.2 model)
-- **Deepgram** - Audio transcription with filler word detection
-- **Gemini 1.5 Pro** - Natural language coaching report generation
+**AI Services (Flexible - Evaluate Best Options)**
+- **Video Analysis:** TwelveLabs (current) or alternatives (OpenAI Vision, custom models)
+- **Speech Transcription:** Deepgram (current) or alternatives (Whisper, AssemblyAI)
+- **Coaching Synthesis:** Gemini (current) or alternatives (Claude, GPT-4)
+
+**Note:** AI services are evaluated based on cost, accuracy, and features. The architecture supports swapping providers without changing business logic.
 
 ---
 
-## 🎯 Key Features (All Implemented ✅)
+## 🎯 Key Features
 
 ### 1. Visual-Verbal Dissonance Detection
 Our AI pipeline analyzes video in parallel:
-- **TwelveLabs**: Eye contact, fidgeting, gestures, facial expressions
-- **Deepgram**: Speech transcription, filler words ("um", "uh", "like"), speaking pace
-- **Gemini**: Synthesizes all data into natural coaching advice
+- **Video Analysis:** Eye contact, fidgeting, gestures, facial expressions
+- **Speech Analysis:** Transcription, filler words ("um", "uh", "like"), speaking pace
+- **Coaching Synthesis:** Natural language coaching advice
 
 ### 2. Three Types of Dissonance Flags
 | Type | Description | Example |
@@ -92,7 +90,7 @@ Our AI pipeline analyzes video in parallel:
 - **Dissonance Timeline** - Click severity markers to jump to timestamps
 - **Coaching Cards** - Dismissible insights with "Jump to Moment" buttons
 - **Transcript Panel** - Word-level transcript with filler word highlighting
-- **Gemini Summary Card** - Natural language coaching advice
+- **Coaching Summary** - Natural language AI coaching advice
 
 ### 4. Coherence Score (0-100)
 Weighted algorithm:
@@ -107,18 +105,26 @@ Weighted algorithm:
 - 51-75: "Good Start"
 - 0-50: "Needs Work"
 
+### 5. Mobile-First Design
+- Responsive layout for all screen sizes
+- Camera integration for mobile recording
+- Touch-optimized interactions
+- Progressive Web App (PWA) support
+
 ---
 
-## 📡 API Endpoints (All Implemented ✅)
+## 📡 API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) |
-| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) |
-| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results |
-| `GET /api/videos/{id}/stream` | GET | Stream video file for playback |
-| `GET /api/videos/samples/{id}` | GET | Load pre-cached sample video |
-| `GET /health` | GET | Health check endpoint |
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `POST /api/auth/register` | POST | User registration | No |
+| `POST /api/auth/login` | POST | User login | No |
+| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) | Yes |
+| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) | Yes |
+| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results | Yes |
+| `GET /api/videos/{id}/stream` | GET | Stream video file for playback | Yes |
+| `GET /api/users/me/videos` | GET | List user's videos | Yes |
+| `GET /health` | GET | Health check endpoint | No |
 
 ### Sample API Response
 
@@ -145,16 +151,16 @@ Weighted algorithm:
       "severity": "HIGH",
       "description": "Said 'thrilled to present' but facial expression showed anxiety",
       "coaching": "Practice saying this line while smiling in a mirror.",
-      "visualEvidence": "TwelveLabs: 'person looking anxious' at 0:43-0:48",
-      "verbalEvidence": "Deepgram: 'thrilled' (positive sentiment)"
+      "visualEvidence": "Detected 'anxious face' at 0:43-0:48",
+      "verbalEvidence": "'thrilled' (positive sentiment)"
     }
   ],
   "transcript": [
     {"text": "Hello everyone, today I'm thrilled...", "start": 0.5, "end": 3.2}
   ],
-  "geminiReport": {
+  "coachingReport": {
     "headline": "Solid foundation to build on",
-    "coachingAdvice": "Great job on your presentation! You did a wonderful job maintaining eye contact..."
+    "advice": "Great job on your presentation! You did a wonderful job maintaining eye contact..."
   }
 }
 ```
@@ -166,7 +172,9 @@ Weighted algorithm:
 ### Prerequisites
 - Node.js 18+
 - Python 3.10+
-- API keys for TwelveLabs, Deepgram, Gemini
+- PostgreSQL (or MongoDB)
+- Redis (for background jobs)
+- API keys for AI services (TwelveLabs, Deepgram, Gemini - or alternatives)
 
 ### Frontend Setup
 ```bash
@@ -185,21 +193,50 @@ python -m venv venv
 
 pip install -r requirements.txt
 
+# Set up database
+alembic upgrade head
+
 # Create .env file in repository root with:
-# TWELVELABS_API_KEY=your_key
-# DEEPGRAM_API_KEY=your_key
-# GEMINI_API_KEY=your_key
+# DATABASE_URL=postgresql://user:pass@localhost/coherence
+# REDIS_URL=redis://localhost:6379
+# TWELVELABS_API_KEY=your_key (or alternative)
+# DEEPGRAM_API_KEY=your_key (or alternative)
+# GEMINI_API_KEY=your_key (or alternative)
+# SECRET_KEY=your_secret_key
+# CLOUD_STORAGE_BUCKET=your_bucket
 
 # Run backend server
 uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run background worker (separate terminal)
+celery -A backend.app.tasks.celery_app worker --loglevel=info
 ```
 
 ### Environment Variables (`.env` in repository root)
 
 ```env
+# Database
+DATABASE_URL=postgresql://user:pass@localhost/coherence
+
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# AI Services (flexible - use alternatives if preferred)
 TWELVELABS_API_KEY=your_twelvelabs_key
 DEEPGRAM_API_KEY=your_deepgram_key
 GEMINI_API_KEY=your_gemini_key
+
+# Security
+SECRET_KEY=your_secret_key_for_jwt
+
+# Storage
+CLOUD_STORAGE_BUCKET=your_bucket_name
+CLOUD_STORAGE_PROVIDER=s3  # or gcs, azure
+
+# Optional: Service selection
+VIDEO_ANALYSIS_PROVIDER=twelvelabs  # or openai, custom
+SPEECH_PROVIDER=deepgram  # or whisper, assemblyai
+COACHING_PROVIDER=gemini  # or claude, gpt4
 ```
 
 ---
@@ -216,58 +253,48 @@ coherence/
 │
 ├── frontend/               # React frontend
 │   ├── main.tsx            # Entry point
-│   ├── App.tsx             # Root component with navigation
-│   ├── index.css           # TailwindCSS styles
+│   ├── App.tsx             # Root component with routing
 │   ├── components/
 │   │   ├── ui/             # shadcn/ui components
-│   │   ├── upload/
-│   │   │   ├── UploadPage.tsx       # Main upload page
-│   │   │   ├── UploadZone.tsx       # Drag-and-drop area
-│   │   │   ├── ProcessingView.tsx   # Status polling UI
-│   │   │   └── SampleVideos.tsx     # Pre-cached samples
-│   │   ├── results/
-│   │   │   ├── ResultsPage.tsx      # Main results dashboard
-│   │   │   ├── VideoPlayer.tsx      # Custom video player
-│   │   │   ├── ScoreBadge.tsx       # Circular score indicator
-│   │   │   ├── CompactMetrics.tsx   # Metrics bar
-│   │   │   ├── CoachingCard.tsx     # Dismissible coaching cards
-│   │   │   ├── DissonanceTimeline.tsx  # Interactive timeline
-│   │   │   ├── TranscriptPanel.tsx  # Word-level transcript
-│   │   │   └── GeminiSummaryCard.tsx   # AI coaching summary
-│   │   └── landing/        # Landing page components
+│   │   ├── auth/           # Authentication components
+│   │   ├── upload/         # Upload page components
+│   │   ├── results/        # Results dashboard components
+│   │   ├── profile/        # User profile components
+│   │   └── mobile/         # Mobile-specific components
 │   ├── lib/
 │   │   ├── api.ts          # API service layer
-│   │   └── mock-data.ts    # Mock data for fallback
+│   │   ├── auth.ts         # Authentication utilities
+│   │   └── hooks/          # Custom React hooks
 │   └── types/
 │       └── api.ts          # TypeScript API types
 │
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI app + CORS
+│   │   ├── config.py            # Configuration
 │   │   ├── routers/
-│   │   │   └── videos.py        # API endpoints
+│   │   │   ├── auth.py          # Authentication endpoints
+│   │   │   ├── users.py         # User management
+│   │   │   └── videos.py        # Video endpoints
 │   │   ├── services/
-│   │   │   ├── video_service.py    # Processing orchestration
-│   │   │   ├── deepgram_service.py # Deepgram wrapper
-│   │   │   ├── twelvelabs_service.py  # TwelveLabs wrapper
-│   │   │   └── gemini_service.py   # Gemini wrapper
-│   │   └── models/
-│   │       └── schemas.py       # Pydantic schemas
-│   ├── deepgram/
-│   │   ├── deepgram_client.py   # SDK client
-│   │   └── transcription.py     # Audio transcription
-│   ├── twelvelabs/
-│   │   ├── twelvelabs_client.py # SDK client
-│   │   ├── indexing.py          # Video indexing
-│   │   └── analysis.py          # Semantic analysis
-│   ├── gemini/
-│   │   ├── gemini_client.py     # SDK client
-│   │   └── synthesis.py         # Dissonance detection
-│   ├── cli.py                   # CLI testing tool
-│   └── data/videos/             # Uploaded video storage
+│   │   │   ├── auth_service.py  # Authentication logic
+│   │   │   ├── video_service.py # Video processing
+│   │   │   ├── storage_service.py # Cloud storage
+│   │   │   └── ai/              # AI service abstraction
+│   │   ├── models/
+│   │   │   ├── database.py     # SQLAlchemy models
+│   │   │   └── schemas.py      # Pydantic schemas
+│   │   ├── middleware/
+│   │   │   ├── auth.py         # Auth middleware
+│   │   │   └── error_handler.py # Error handling
+│   │   └── tasks/
+│   │       └── video_processing.py # Background jobs
+│   ├── alembic/            # Database migrations
+│   ├── tests/              # Test suite
+│   └── cli.py              # CLI testing tool
 │
 ├── documentation/
-│   ├── ROADMAP.md          # Build plan
+│   ├── ROADMAP.md          # Development phases
 │   └── FIGMA_GUIDELINES.md # Frontend spec
 ├── AGENTS.md               # AI assistant guidelines
 ├── CLAUDE.md               # Backend guidelines
@@ -279,51 +306,82 @@ coherence/
 ## 🔄 Processing Pipeline
 
 ```
-Upload Video ─┬─► Deepgram (5-10s)    ─┬─► Merge Results ─► Gemini Report ─► Store
-              │   └─► Transcript       │   └─► Score Calculation
-              │   └─► Filler words     │
-              │   └─► Speaking pace    │
-              │                        │
-              └─► TwelveLabs (20-40s) ─┘
+Upload Video ─┬─► Speech Analysis (5-10s)    ─┬─► Merge Results ─► Coaching Report ─► Store
+              │   └─► Transcript              │   └─► Score Calculation
+              │   └─► Filler words            │
+              │   └─► Speaking pace           │
+              │                               │
+              └─► Video Analysis (20-40s)     ─┘
                   └─► Video indexing
-                  └─► Semantic analysis
+                  └─► Visual analysis
                   └─► Dissonance flags
 ```
 
-**Processing Time:** ~45-60 seconds for 2-minute video
+**Processing Time:** ~30-45 seconds for 2-minute video (target: <30s)
 
 ---
 
-## 🐛 Known Limitations
+## 🎯 Development Roadmap
 
-- ❌ No user authentication
-- ❌ No database persistence (in-memory cache only)
-- ❌ No mobile app (web-only, desktop-first design)
-- ❌ Processing limited to 5-minute videos
-- ❌ No video editing/trimming
-- ✅ All AI services integrated (TwelveLabs, Deepgram, Gemini)
+See [ROADMAP.md](documentation/ROADMAP.md) for detailed development phases:
+
+- **Phase 1:** Foundation & Infrastructure (Auth, Database, Storage)
+- **Phase 2:** User Experience & Mobile (Mobile-first design, UX improvements)
+- **Phase 3:** Advanced Features (Enhanced AI, personalized coaching)
+- **Phase 4:** Scale & Optimization (Performance, scalability)
+- **Phase 5:** Launch Preparation (Deployment, billing, go-to-market)
+
+---
+
+## 🐛 Current Status
+
+**✅ Completed (Hackathon MVP):**
+- Core video analysis pipeline
+- Visual-verbal dissonance detection
+- Interactive results dashboard
+- Basic API endpoints
+
+**🚧 In Progress (Production):**
+- User authentication system
+- Database persistence
+- Cloud storage migration
+- Background job system
+- Mobile-first responsive design
+
+**⏳ Planned:**
+- Advanced AI features
+- Team/group features
+- Integration with presentation tools
+- Production deployment
 
 ---
 
 ## 📚 Documentation
 
-- [Roadmap](documentation/ROADMAP.md) - Build plan, milestones, and progress
-- [Frontend Guidelines](documentation/FIGMA_GUIDELINES.md) - Frontend generation spec
+- [Roadmap](documentation/ROADMAP.md) - Development phases and milestones
+- [Frontend Guidelines](FIGMA_GUIDELINES.md) - Frontend generation spec and mobile-first design
 - [Backend Guidelines](CLAUDE.md) - Backend development and API contracts
 - [Agent Guidelines](AGENTS.md) - AI assistant integration patterns
-- [Backend README](backend/README.md) - Module documentation and CLI tool
+- [Backend README](backend/README.md) - Backend module documentation
+
+---
+
+## 🤝 Contributing
+
+This is a production startup project. For contributions, please:
+1. Check the current phase in [ROADMAP.md](documentation/ROADMAP.md)
+2. Follow code quality standards in [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md)
+3. Write tests for new features
+4. Update documentation as needed
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **TwelveLabs** - Semantic video understanding API
-- **Deepgram** - Real-time speech transcription
-- **Google** - Gemini 1.5 Pro multimodal AI
-- **Vite** - Frontend build tool
-- **React** - UI framework
-- **FastAPI** - Backend framework
+- **AI Service Providers** - Video understanding, speech transcription, and coaching synthesis
+- **Open Source Community** - Vite, React, FastAPI, and all other open-source tools
+- **Early Users** - Feedback and support during development
 
 ---
 
-**Built with ❤️ in 24 hours | SBHacks 2025**
+**Built with ❤️ | Making confident presentation skills accessible to everyone**
