@@ -1,86 +1,148 @@
 /**
- * API Service Layer for Coherence Backend
- *
- * Handles all communication with FastAPI backend.
- * Includes error handling, type conversion, and response transformation.
+ * API Layer for Coherence
+ * 
+ * Provides dual-mode operation:
+ * 1. Figma Make Mode: Returns mock data immediately
+ * 2. Production Mode: Makes real API calls to FastAPI backend
+ * 
+ * All functions check IS_FIGMA_MAKE_MODE before making real API calls.
  */
 
-import type {
-  UploadResponse,
-  StatusResponse,
-  ApiAnalysisResult,
-  ApiError,
-  SampleVideoResponse,
-} from '../types/api';
-import type { AnalysisResult, DissonanceFlag, Metrics, TranscriptSegment } from './mock-data';
+import { IS_FIGMA_MAKE_MODE, API_BASE_URL } from './config';
+import { mockAnalysisResult, type AnalysisResult } from './mock-data';
 
 // ========================
-// Configuration
+// Constants
 // ========================
 
-// API base URL - use Vite env var or default to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-// Polling interval for status checks (ms)
-export const STATUS_POLL_INTERVAL = 3000;
-
-// File constraints
-export const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-export const MAX_VIDEO_DURATION = 5 * 60; // 5 minutes
-export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+/**
+ * Polling interval for status checks (milliseconds)
+ */
+export const STATUS_POLL_INTERVAL = 3000; // 3 seconds
 
 // ========================
-// Custom Error Class
+// Type Definitions
 // ========================
 
-export class VideoAnalysisError extends Error {
+/**
+ * Response from video upload
+ * Endpoint: POST /api/videos/upload
+ */
+export interface UploadResponse {
+  videoId: string;
+  status: 'processing';
+  estimatedTime: number; // Seconds
+  durationSeconds: number;
+}
+
+/**
+ * Response from status check
+ * Endpoint: GET /api/videos/{videoId}/status
+ */
+export interface StatusResponse {
+  videoId: string;
+  status: 'queued' | 'processing' | 'complete' | 'error';
+  progress: number; // 0-100
+  stage: string;
+  etaSeconds?: number;
+  error?: string;
+}
+
+/**
+ * Standard error response from backend
+ */
+export interface ApiError {
+  error: string;
   code: string;
   retryable: boolean;
+}
 
-  constructor(message: string, code: string = 'UNKNOWN_ERROR', retryable: boolean = false) {
+/**
+ * Custom error class for video analysis errors
+ */
+export class VideoAnalysisError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public retryable: boolean
+  ) {
     super(message);
     this.name = 'VideoAnalysisError';
-    this.code = code;
-    this.retryable = retryable;
   }
+}
+
+// ========================
+// Validation Functions
+// ========================
+
+/**
+ * Validate video file before upload
+ * Returns error message or null if valid
+ */
+export function validateVideoFile(file: File): string | null {
+  const MAX_SIZE = 500 * 1024 * 1024; // 500MB
+  const ALLOWED_TYPES = ['video/mp4', 'video/quicktime', 'video/x-m4v'];
+  
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return 'Please upload a video file (MP4 or MOV format)';
+  }
+  
+  if (file.size > MAX_SIZE) {
+    return 'File size must be less than 500MB';
+  }
+  
+  return null;
 }
 
 // ========================
 // Helper Functions
 // ========================
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let errorData: ApiError;
-    try {
-      errorData = await response.json();
-    } catch {
-      throw new VideoAnalysisError(
-        `Request failed with status ${response.status}`,
-        'HTTP_ERROR',
-        response.status >= 500
-      );
-    }
-    throw new VideoAnalysisError(
-      errorData.error || 'Request failed',
-      errorData.code || 'API_ERROR',
-      errorData.retryable || false
-    );
+/**
+ * Get auth token from storage
+ * In Figma Make mode, returns null (no auth needed)
+ * In production, retrieves token from Supabase session
+ */
+async function getAuthToken(): Promise<string | null> {
+  if (IS_FIGMA_MAKE_MODE) {
+    return null;
   }
-  return response.json();
+  
+  // BACKEND_HOOK: Get auth token from Supabase session
+  // ─────────────────────────────────────────
+  // Retrieve token from Supabase auth session
+  // Returns null if no session exists (allows unauthenticated API calls)
+  // Status: CONNECTED ✅
+  // ─────────────────────────────────────────
+  try {
+    const { supabase } = await import('./supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  } catch (error) {
+    console.warn('Failed to get auth token:', error);
+    return null; // Fail gracefully - allow unauthenticated requests
+  }
 }
 
 /**
- * Validate video file before upload
+ * Handle API response and errors
  */
-export function validateVideoFile(file: File): string | null {
-  if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
-    return 'Invalid file type. Please upload MP4, MOV, or WebM.';
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const errorData: ApiError = await response.json().catch(() => ({
+      error: 'An unexpected error occurred',
+      code: 'UNKNOWN_ERROR',
+      retryable: false,
+    }));
+    
+    throw new VideoAnalysisError(
+      errorData.error,
+      errorData.code,
+      errorData.retryable
+    );
   }
-  if (file.size > MAX_FILE_SIZE) {
-    return `File too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`;
-  }
-  return null;
+  
+  return response.json();
 }
 
 // ========================
@@ -89,279 +151,304 @@ export function validateVideoFile(file: File): string | null {
 
 /**
  * Upload a video file for analysis
- *
- * @param file - Video file to upload
- * @returns Upload response with videoId
  */
 export async function uploadVideo(file: File): Promise<UploadResponse> {
+  // Validate file (works in both modes)
   const validationError = validateVideoFile(file);
   if (validationError) {
     throw new VideoAnalysisError(validationError, 'VALIDATION_ERROR', false);
   }
 
+  // FIGMA MAKE MODE: Return mock data immediately
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock upload:', file.name);
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
+    return {
+      videoId: 'demo-video-abc123',
+      status: 'processing' as const,
+      estimatedTime: 60,
+      durationSeconds: 222,
+    };
+  }
+
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: Upload video file for analysis
+  // ─────────────────────────────────────────
+  // Endpoint: POST /api/videos/upload
+  // Request:  FormData with 'video' field (MP4/MOV, max 500MB)
+  // Response: UploadResponse { videoId, status, estimatedTime }
+  // Success:  Navigate to processing view
+  // Error:    Show error message, allow retry if retryable
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
   const formData = new FormData();
   formData.append('video', file);
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/videos/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    return handleResponse<UploadResponse>(response);
-  } catch (error) {
-    if (error instanceof VideoAnalysisError) {
-      throw error;
-    }
-    throw new VideoAnalysisError(
-      'Failed to upload video. Please check your connection and try again.',
-      'NETWORK_ERROR',
-      true
-    );
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
+
+  const response = await fetch(`${API_BASE_URL}/api/videos/upload`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse<UploadResponse>(response);
 }
 
 /**
  * Poll processing status for a video
- *
- * @param videoId - Video ID to check status for
- * @returns Current status response
  */
 export async function pollStatus(videoId: string): Promise<StatusResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/status`);
-    return handleResponse<StatusResponse>(response);
-  } catch (error) {
-    if (error instanceof VideoAnalysisError) {
-      throw error;
-    }
-    throw new VideoAnalysisError(
-      'Failed to check processing status.',
-      'NETWORK_ERROR',
-      true
-    );
+  // FIGMA MAKE MODE: Return mock status with incremental progress
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock poll status for:', videoId);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Simulate progress that eventually completes
+    const mockProgress = Math.min(100, Math.floor(Math.random() * 30) + 70); // 70-100%
+    return {
+      videoId,
+      status: mockProgress >= 100 ? 'complete' : 'processing',
+      progress: mockProgress,
+      stage: mockProgress >= 100 ? 'Analysis complete!' : 'Analyzing emotional alignment...',
+      etaSeconds: mockProgress >= 100 ? 0 : 15,
+    };
   }
+
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: Poll processing status
+  // ─────────────────────────────────────────
+  // Endpoint: GET /api/videos/{videoId}/status
+  // Request:  None (videoId in URL path)
+  // Response: StatusResponse { status, progress, stage, etaSeconds }
+  // Success:  Update UI with progress; navigate to /results when complete
+  // Error:    Show error state, offer retry
+  // Polling:  Every 3 seconds until status !== 'processing'
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/status`, {
+    headers,
+  });
+  return handleResponse<StatusResponse>(response);
 }
 
 /**
  * Fetch analysis results for a video
- *
- * @param videoId - Video ID to fetch results for
- * @returns Analysis results (transformed to frontend format)
  */
 export async function fetchResults(videoId: string): Promise<AnalysisResult> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/results`);
-    const apiResult = await handleResponse<ApiAnalysisResult>(response);
+  // FIGMA MAKE MODE: Return mock results immediately
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock fetch results for:', videoId);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    return mockAnalysisResult;
+  }
 
-    // Transform backend response to frontend format
-    return transformApiResultToFrontend(apiResult);
-  } catch (error) {
-    if (error instanceof VideoAnalysisError) {
-      throw error;
-    }
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: Fetch analysis results
+  // ─────────────────────────────────────────
+  // Endpoint: GET /api/videos/{videoId}/results
+  // Request:  None (videoId in URL path)
+  // Response: AnalysisResult (see types in mock-data.ts)
+  // Success:  Display results dashboard
+  // Error:    Show error page with retry option
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/results`, {
+    headers,
+  });
+
+  return handleResponse<AnalysisResult>(response);
+}
+
+/**
+ * Delete a video and its analysis
+ */
+export async function deleteVideo(videoId: string): Promise<void> {
+  // FIGMA MAKE MODE: Mock deletion
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock delete video:', videoId);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return;
+  }
+
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: Delete video
+  // ─────────────────────────────────────────
+  // Endpoint: DELETE /api/videos/{videoId}
+  // Request:  None (videoId in URL path)
+  // Response: Empty (204 No Content)
+  // Success:  Navigate back to upload page
+  // Error:    Show error message
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData: ApiError = await response.json().catch(() => ({
+      error: 'Failed to delete video',
+      code: 'DELETE_ERROR',
+      retryable: true,
+    }));
+    
     throw new VideoAnalysisError(
-      'Failed to fetch analysis results.',
-      'NETWORK_ERROR',
-      true
+      errorData.error,
+      errorData.code,
+      errorData.retryable
     );
   }
 }
 
 /**
- * Load a pre-analyzed sample video
- *
- * @param sampleId - Sample video ID
- * @returns Sample video response
+ * List all videos for current user
  */
-export async function loadSampleVideo(sampleId: string): Promise<SampleVideoResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/videos/samples/${sampleId}`);
-    return handleResponse<SampleVideoResponse>(response);
-  } catch (error) {
-    if (error instanceof VideoAnalysisError) {
-      throw error;
-    }
-    throw new VideoAnalysisError(
-      'Failed to load sample video.',
-      'NETWORK_ERROR',
-      true
-    );
+export async function listVideos(): Promise<Array<{
+  videoId: string;
+  videoTitle: string;
+  uploadDate: string;
+  duration: number;
+  coherenceScore?: number;
+  thumbnailUrl?: string;
+}>> {
+  // FIGMA MAKE MODE: Return mock video list
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock list videos');
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return [
+      {
+        videoId: 'demo-video-abc123',
+        videoTitle: 'MBA Product Pitch - Final Presentation',
+        uploadDate: 'Jan 10, 2026',
+        duration: 222,
+        coherenceScore: 67,
+        thumbnailUrl: '/mock-thumbnails/presentation-frame.jpg',
+      },
+      {
+        videoId: 'demo-video-xyz789',
+        videoTitle: 'Q4 Sales Review',
+        uploadDate: 'Jan 8, 2026',
+        duration: 180,
+        coherenceScore: 82,
+      },
+    ];
   }
-}
 
-/**
- * Get video stream URL
- *
- * @param videoId - Video ID
- * @returns Full URL for video streaming
- */
-export function getVideoStreamUrl(videoId: string): string {
-  return `${API_BASE_URL}/api/videos/${videoId}/stream`;
-}
-
-// ========================
-// Data Transformation
-// ========================
-
-/**
- * Transform backend API response to frontend AnalysisResult format.
- * Maps fields and adds computed/default values for frontend display.
- */
-function transformApiResultToFrontend(apiResult: ApiAnalysisResult): AnalysisResult {
-  // Transform dissonance flags
-  const dissonanceFlags: DissonanceFlag[] = apiResult.dissonanceFlags.map((flag) => ({
-    id: flag.id,
-    timestamp: flag.timestamp,
-    type: mapDissonanceType(flag.type),
-    severity: flag.severity,
-    description: flag.description,
-    quote: flag.verbalEvidence || undefined,
-    coaching: flag.coaching,
-    confidence: 85, // Default confidence since backend doesn't provide it
-    duration: flag.endTimestamp ? flag.endTimestamp - flag.timestamp : undefined,
-  }));
-
-  // Transform metrics with default trends (backend doesn't track history)
-  const metrics: Metrics = {
-    eyeContact: apiResult.metrics.eyeContact,
-    fillerWords: apiResult.metrics.fillerWords,
-    speakingPace: apiResult.metrics.speakingPace,
-    fidgeting: apiResult.metrics.fidgeting,
-    // Default trends (no historical data yet)
-    eyeContactTrend: 0,
-    fillerWordsTrend: 0,
-    speakingPaceTrend: 0,
-    fidgetingTrend: 0,
-  };
-
-  // Transform transcript if present
-  const transcript: TranscriptSegment[] = apiResult.transcript
-    ? apiResult.transcript.map((seg, idx) => ({
-        id: `seg-${idx + 1}`,
-        timestamp: seg.start,
-        text: seg.text,
-        highlight: null,
-      }))
-    : generateBasicTranscript(apiResult);
-
-  // Build frontend result
-  return {
-    videoId: apiResult.videoId,
-    videoTitle: 'Presentation Analysis', // Backend doesn't store title
-    uploadDate: new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }),
-    duration: apiResult.durationSeconds,
-    fileSize: 'Unknown', // Backend doesn't return file size in results
-    resolution: '1080p', // Default
-    coherenceScore: apiResult.coherenceScore,
-    metrics,
-    dissonanceFlags,
-    transcript,
-    videoUrl: apiResult.videoUrl.startsWith('http')
-      ? apiResult.videoUrl
-      : `${API_BASE_URL}${apiResult.videoUrl}`,
-    // Pass through Gemini comprehensive report if available
-    geminiReport: apiResult.geminiReport,
-  };
-}
-
-/**
- * Map backend dissonance type to frontend type
- * (Frontend has additional types for UI purposes)
- */
-function mapDissonanceType(
-  type: string
-): 'EMOTIONAL_MISMATCH' | 'MISSING_GESTURE' | 'PACING_MISMATCH' | 'EYE_CONTACT_LOSS' | 'FILLER_WORDS' | 'POSITIVE_MOMENT' {
-  switch (type) {
-    case 'EMOTIONAL_MISMATCH':
-      return 'EMOTIONAL_MISMATCH';
-    case 'MISSING_GESTURE':
-      return 'MISSING_GESTURE';
-    case 'PACING_MISMATCH':
-      return 'PACING_MISMATCH';
-    default:
-      return 'EMOTIONAL_MISMATCH';
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: List videos
+  // ─────────────────────────────────────────
+  // Endpoint: GET /api/videos
+  // Request:  None
+  // Response: Array of video metadata objects
+  // Success:  Display video library
+  // Error:    Show error message
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
-}
 
-/**
- * Generate basic transcript segments from dissonance flags
- * when backend doesn't provide transcript data.
- */
-function generateBasicTranscript(apiResult: ApiAnalysisResult): TranscriptSegment[] {
-  const segments: TranscriptSegment[] = [];
-
-  // Add intro segment
-  segments.push({
-    id: 'seg-intro',
-    timestamp: 0,
-    text: 'Presentation analysis started...',
-    highlight: null,
+  const response = await fetch(`${API_BASE_URL}/api/videos`, {
+    headers,
   });
 
-  // Add segments for each dissonance flag
-  apiResult.dissonanceFlags.forEach((flag, idx) => {
-    segments.push({
-      id: `seg-flag-${idx + 1}`,
-      timestamp: flag.timestamp,
-      text: flag.verbalEvidence || flag.description,
-      highlight: flag.severity === 'HIGH' ? 'mismatch' : null,
-      flagId: flag.id,
-    });
-  });
-
-  // Sort by timestamp
-  segments.sort((a, b) => a.timestamp - b.timestamp);
-
-  return segments;
+  return handleResponse(response);
 }
 
-// ========================
-// PDF Report Generation
-// ========================
-
 /**
- * Generate a comprehensive PDF report for a video analysis
- *
- * @param videoId - Video ID to generate report for
- * @returns PDF file as Blob
+ * Generate PDF report for a video analysis
  */
 export async function generateReport(videoId: string): Promise<Blob> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/report`, {
-      method: 'POST',
-    });
+  // FIGMA MAKE MODE: Return mock PDF blob
+  if (IS_FIGMA_MAKE_MODE) {
+    console.log('🎨 [Figma Make Mode] Mock generate report for:', videoId);
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate PDF generation delay
+    
+    // Create a simple mock PDF blob (minimal valid PDF)
+    const mockPdfContent = '%PDF-1.4\n1 0 obj\n<<\n/Type /Catalog\n>>\nendobj\nxref\n0 1\ntrailer\n<<\n/Root 1 0 R\n>>\n%%EOF';
+    return new Blob([mockPdfContent], { type: 'application/pdf' });
+  }
 
-    if (!response.ok) {
-      let errorMessage = 'Failed to generate report';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        // Ignore JSON parse errors
-      }
-      throw new VideoAnalysisError(errorMessage, 'REPORT_GENERATION_FAILED', true);
-    }
+  // PRODUCTION MODE: Real API call
+  // BACKEND_HOOK: Generate PDF report
+  // ─────────────────────────────────────────
+  // Endpoint: POST /api/videos/{videoId}/report
+  // Request:  None (videoId in URL path)
+  // Response: Blob (application/pdf)
+  // Success:  Download PDF file
+  // Error:    Show error message, allow retry
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  const token = await getAuthToken();
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
-    return response.blob();
-  } catch (error) {
-    if (error instanceof VideoAnalysisError) {
-      throw error;
-    }
+  const response = await fetch(`${API_BASE_URL}/api/videos/${videoId}/report`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData: ApiError = await response.json().catch(() => ({
+      error: 'Failed to generate PDF report',
+      code: 'PDF_GENERATION_FAILED',
+      retryable: true,
+    }));
+    
     throw new VideoAnalysisError(
-      'Failed to generate PDF report. Please try again.',
-      'NETWORK_ERROR',
-      true
+      errorData.error,
+      errorData.code,
+      errorData.retryable
     );
   }
+
+  return response.blob();
 }
 
-// ========================
-// Export API Base URL for components
-// ========================
+/**
+ * Get video stream URL for playback
+ */
+export function getVideoStreamUrl(videoId: string): string {
+  // FIGMA MAKE MODE: Return mock video URL
+  if (IS_FIGMA_MAKE_MODE) {
+    return 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  }
 
-export { API_BASE_URL };
+  // PRODUCTION MODE: Return actual video stream URL
+  // BACKEND_HOOK: Get video stream URL
+  // ─────────────────────────────────────────
+  // Endpoint: GET /api/videos/{videoId}/stream
+  // Request:  None (videoId in URL path)
+  // Response: Video stream (video/mp4)
+  // Usage:    Use as src for <video> element
+  // Status:   NOT_CONNECTED (ready for backend integration)
+  // ─────────────────────────────────────────
+  return `${API_BASE_URL}/api/videos/${videoId}/stream`;
+}

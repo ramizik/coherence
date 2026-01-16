@@ -36,10 +36,19 @@ FastAPI backend for the Coherence AI Presentation Coach platform.
    Create a `.env` file in the repository root:
 
    ```env
+   # Supabase Configuration
+   SUPABASE_URL=https://xxx.supabase.co
+   SUPABASE_KEY=your_service_role_key_here  # Service role key (NOT anon key)
+
+   # AI Service Keys
    TWELVELABS_API_KEY=your_twelvelabs_api_key_here
    DEEPGRAM_API_KEY=your_deepgram_api_key_here
    GEMINI_API_KEY=your_gemini_api_key_here
    ```
+
+   **Important:** Get Supabase keys from: Supabase Dashboard → Settings → API
+   - `SUPABASE_URL`: Project URL
+   - `SUPABASE_KEY`: Service role key (has full access, keep secret)
 
 ## Running the Backend
 
@@ -70,14 +79,17 @@ uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) |
-| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) |
-| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results |
-| `GET /api/videos/{id}/stream` | GET | Stream video file for playback |
-| `GET /api/videos/samples/{id}` | GET | Load pre-cached sample video |
-| `GET /health` | GET | Health check endpoint |
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `GET /api/auth/me` | GET | Get current authenticated user info | Yes |
+| `POST /api/videos/upload` | POST | Upload video (MP4/MOV/WebM, max 500MB) | Yes |
+| `GET /api/videos/{id}/status` | GET | Poll processing status (0-100%) | Yes |
+| `GET /api/videos/{id}/results` | GET | Fetch complete analysis results | Yes |
+| `GET /api/videos/{id}/stream` | GET | Stream video file for playback | Yes |
+| `GET /api/videos/samples/{id}` | GET | Load pre-cached sample video | No |
+| `GET /health` | GET | Health check endpoint | No |
+
+**Authentication:** Protected endpoints require JWT token in `Authorization: Bearer <token>` header. Tokens are verified using Supabase's JWT verification.
 
 ## Project Structure
 
@@ -86,7 +98,10 @@ backend/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI app + CORS + startup logging
+│   ├── config.py            # Configuration management (Supabase, AI services)
+│   ├── dependencies.py      # Supabase client, auth dependencies
 │   ├── routers/
+│   │   ├── auth.py          # Authentication endpoints
 │   │   └── videos.py        # Video API endpoints
 │   ├── services/
 │   │   ├── video_service.py     # Processing orchestration
@@ -339,6 +354,8 @@ Weighted scoring (0-100):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `SUPABASE_URL` | Yes | Supabase project URL (from Dashboard → Settings → API) |
+| `SUPABASE_KEY` | Yes | Supabase service role key (NOT anon key - has full access) |
 | `TWELVELABS_API_KEY` | Yes | TwelveLabs API key for video indexing + analysis |
 | `DEEPGRAM_API_KEY` | Yes | Deepgram API key for audio transcription |
 | `GEMINI_API_KEY` | Yes* | Gemini API key for coaching reports (*fallback to template if missing) |
@@ -354,14 +371,36 @@ Coherence API Starting...
 ✓ TwelveLabs: AVAILABLE
 ✓ Deepgram: AVAILABLE
 ✓ Gemini: AVAILABLE
+✓ Supabase: CONFIGURED
+------------------------------------------------------------
+✓ Sample Cache: ALL CACHED (3/3)
 ============================================================
 API ready at http://localhost:8000
 ============================================================
 ```
 
+## Authentication
+
+Authentication is handled via Supabase JWT tokens. The backend verifies tokens using `supabase.auth.get_claims(jwt=token)` for local JWT verification (faster than server round-trip).
+
+**Key Files:**
+- `backend/app/config.py` - Loads Supabase configuration from environment variables
+- `backend/app/dependencies.py` - Supabase client singleton and `get_current_user` dependency
+- `backend/app/routers/auth.py` - Test endpoint `/api/auth/me` for verifying authentication
+
+**Usage in Endpoints:**
+```python
+from backend.app.dependencies import get_current_user
+
+@router.get("/protected")
+async def protected_endpoint(user: dict = Depends(get_current_user)):
+    # user contains: id, email, email_verified, aud, role
+    return {"user_id": user["id"]}
+```
+
 ## Notes
 
 - CORS configured for `http://localhost:3000` and `http://127.0.0.1:3000`
-- Video files stored in `backend/data/videos/`
-- In-memory caching - no database persistence
+- Video files stored in `backend/data/videos/` (will migrate to Supabase Storage)
+- Database: Supabase PostgreSQL (videos and analyses tables)
 - Parallel processing of TwelveLabs + Deepgram for faster results

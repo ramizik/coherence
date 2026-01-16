@@ -175,14 +175,15 @@ Weighted algorithm:
 
 | Endpoint                       | Method | Description                            | Auth Required |
 | ------------------------------ | ------ | -------------------------------------- | ------------- |
-| `POST /api/auth/register`      | POST   | User registration                      | No            |
-| `POST /api/auth/login`         | POST   | User login                             | No            |
+| `GET /api/auth/me`             | GET    | Get current authenticated user info    | Yes           |
 | `POST /api/videos/upload`      | POST   | Upload video (MP4/MOV/WebM, max 500MB) | Yes           |
 | `GET /api/videos/{id}/status`  | GET    | Poll processing status (0-100%)        | Yes           |
 | `GET /api/videos/{id}/results` | GET    | Fetch complete analysis results        | Yes           |
 | `GET /api/videos/{id}/stream`  | GET    | Stream video file for playback         | Yes           |
 | `GET /api/users/me/videos`     | GET    | List user's videos                     | Yes           |
 | `GET /health`                  | GET    | Health check endpoint                  | No            |
+
+**Note:** Authentication is handled by Supabase. Frontend uses Supabase JS SDK for login/register. Backend verifies JWT tokens from `Authorization: Bearer <token>` header.
 
 ### Sample API Response
 
@@ -332,11 +333,11 @@ coherence/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI app + CORS
-│   │   ├── config.py            # Configuration (Supabase keys)
+│   │   ├── main.py              # FastAPI app + CORS + startup logging
+│   │   ├── config.py            # Configuration (Supabase keys, AI services)
 │   │   ├── dependencies.py      # Supabase client, auth dependencies
 │   │   ├── routers/
-│   │   │   ├── users.py         # User management
+│   │   │   ├── auth.py         # Authentication endpoints
 │   │   │   └── videos.py       # Video endpoints
 │   │   ├── services/
 │   │   │   ├── video_service.py # Video processing
