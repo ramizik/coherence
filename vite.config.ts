@@ -1,10 +1,10 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 
-  import { defineConfig } from 'vite';
-  import react from '@vitejs/plugin-react-swc';
-  import path from 'path';
-
-  export default defineConfig({
-    plugins: [react()],
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -18,6 +18,7 @@
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
         'figma:asset/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png': path.resolve(__dirname, './frontend/assets/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png'),
+        'figma:asset/28ae161ca94a38863b55fa191b862c3c542f78b7.png': path.resolve(__dirname, './frontend/assets/28ae161ca94a38863b55fa191b862c3c542f78b7.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',

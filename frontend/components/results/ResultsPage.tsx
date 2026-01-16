@@ -9,6 +9,7 @@ import { GeminiSummaryCard } from './GeminiSummaryCard';
 import { ScoreBadge } from './ScoreBadge';
 import { TranscriptPanel } from './TranscriptPanel';
 import { VideoPlayer } from './VideoPlayer';
+import { UserMenu } from '../auth/UserMenu';
 
 interface ResultsPageProps {
   videoId: string;
@@ -277,16 +278,24 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
     <div className="min-h-screen bg-[#0F172A]">
       <div className="max-w-[1600px] mx-auto px-10 py-10">
 
-        {/* Back Button */}
-        {onBackToUpload && (
-          <button
-            onClick={onBackToUpload}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
-          >
-            <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-            <span className="text-[14px]">Back to Upload</span>
-          </button>
-        )}
+        {/* Top Navigation Bar */}
+        <div className="flex items-center justify-between mb-6">
+          {/* Back Button */}
+          {onBackToUpload && (
+            <button
+              onClick={onBackToUpload}
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+              <span className="text-[14px]">Back to Upload</span>
+            </button>
+          )}
+
+          {/* User Menu */}
+          <div className="ml-auto">
+            <UserMenu />
+          </div>
+        </div>
 
         {/* Error banner if using fallback data */}
         {error && result && (
@@ -329,6 +338,30 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
                   coachingAdvice={result.geminiReport.coachingAdvice}
                   headline={result.geminiReport.headline}
                 />
+                
+                {/* Download Report Button - Under Gemini Summary */}
+                <div className="mt-4">
+                  {reportError && (
+                    <div className="mb-2 text-red-400 text-sm">{reportError}</div>
+                  )}
+                  <button
+                    onClick={handleGenerateReport}
+                    disabled={isGeneratingReport}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
+                  >
+                    {isGeneratingReport ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileDown className="w-4 h-4" />
+                        <span>Download Report</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -339,10 +372,6 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
-              {reportError && (
-                <span className="text-red-400 text-sm">{reportError}</span>
-              )}
-
               {/* Jump to Best Moment */}
               <button
                 onClick={handleJumpToBest}
@@ -359,25 +388,6 @@ export function ResultsPage({ videoId, onBackToUpload }: ResultsPageProps) {
               >
                 <AlertTriangle className="w-4 h-4" />
                 <span>Weakest Moment</span>
-              </button>
-
-              {/* Download Report Button */}
-              <button
-                onClick={handleGenerateReport}
-                disabled={isGeneratingReport}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40"
-              >
-                {isGeneratingReport ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileDown className="w-4 h-4" />
-                    <span>Download Report</span>
-                  </>
-                )}
               </button>
             </div>
           </div>

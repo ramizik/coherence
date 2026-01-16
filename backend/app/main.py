@@ -66,8 +66,9 @@ async def health():
 
 
 # Include routers
-from backend.app.routers import videos
+from backend.app.routers import videos, auth
 app.include_router(videos.router, prefix="/api/videos", tags=["videos"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 
 @app.on_event("startup")
@@ -106,6 +107,16 @@ async def startup_event():
             logger.warning("✗ Gemini: NOT AVAILABLE (check GEMINI_API_KEY)")
     except Exception as e:
         logger.warning(f"✗ Gemini: IMPORT FAILED ({e})")
+
+    # Check Supabase availability
+    try:
+        from backend.app.config import settings
+        if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+            logger.info("✓ Supabase: CONFIGURED")
+        else:
+            logger.warning("✗ Supabase: NOT CONFIGURED (check SUPABASE_URL and SUPABASE_KEY)")
+    except Exception as e:
+        logger.warning(f"✗ Supabase: CONFIGURATION ERROR ({e})")
 
     logger.info("-" * 60)
 

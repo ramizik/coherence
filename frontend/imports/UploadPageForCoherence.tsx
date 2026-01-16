@@ -1,6 +1,6 @@
 import svgPaths from "./svg-nwrjkri6xc";
 import clsx from "clsx";
-import imgResultsPage from "figma:asset/28ae161ca94a38863b55fa191b862c3c542f78b7.png";
+import imgResultsPage from "@/assets/28ae161ca94a38863b55fa191b862c3c542f78b7.png";
 type ButtonBackgroundImageProps = {
   additionalClassNames?: string;
 };

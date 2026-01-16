@@ -7,6 +7,7 @@ import { UploadZone } from './UploadZone';
 import { ProcessingView } from './ProcessingView';
 import { ProblemStatement } from '../landing/ProblemStatement';
 import { PipelineSection } from '../landing/PipelineSection';
+import { UserMenu } from '../auth/UserMenu';
 import logoImage from '../../assets/0dc2a6ec5bf44ec754a0c89fbc29c9704b8064e2.png';
 import { uploadVideo, VideoAnalysisError } from '../../lib/api';
 
@@ -97,6 +98,11 @@ export function UploadPage({ onNavigateToResults }: UploadPageProps) {
             alt="Coherence Logo"
             className="h-32 w-auto"
           />
+        </div>
+
+        {/* User Menu - Fixed at top right */}
+        <div className="absolute top-8 right-8 z-20">
+          <UserMenu />
         </div>
 
         {/* Conditional rendering: Upload view or Processing view */}
